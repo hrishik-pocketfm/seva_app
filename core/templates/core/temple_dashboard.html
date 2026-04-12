@@ -1,0 +1,188 @@
+{% extends 'core/base.html' %}
+{% block title %}Seva Dashboard{% endblock %}
+{% block nav_dashboard %}active{% endblock %}
+
+{% block content %}
+<section class="hero">
+  <h1>Temple Seva Dashboard</h1>
+  <p class="lead">Pick a date to see seva scheduled for that day and the devotees available to help on {{ selected_day_name }}.</p>
+</section>
+
+<div class="grid three" style="margin-bottom:16px">
+  <div class="card">
+    <span class="label">Total Responses</span>
+    <div class="stat">{{ devotees_count }}</div>
+  </div>
+  <div class="card">
+    <span class="label">Total Seva Added</span>
+    <div class="stat">{{ events_count }}</div>
+  </div>
+  <div class="card">
+    <span class="label">Available On {{ selected_day_name }}</span>
+    <div class="stat">{{ available_slots|length }}</div>
+  </div>
+</div>
+
+<div class="grid two">
+  <div class="card">
+    <div class="split" style="align-items:center;margin-bottom:14px">
+      <div>
+        <h2 style="margin-bottom:6px">Filter by Date</h2>
+        <div class="mini">Choose any date to see matching devotees for that weekday.</div>
+      </div>
+      <a href="{% url 'seva_event_new' %}" class="btn-primary"><i class="bi bi-plus-lg"></i> Add Seva</a>
+    </div>
+    <form method="get">
+      <label class="label">Date</label>
+      <div class="split" style="align-items:end">
+        <input type="date" name="date" value="{{ selected_date|date:'Y-m-d' }}" class="seva-input">
+        <button type="submit" class="btn-secondary">Show</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-bottom:8px">WhatsApp Message</h2>
+    <p class="mini" style="margin-bottom:10px">Customize once and send from the buttons below. Tokens: <code>{name}</code>, <code>{date}</code>, <code>{time}</code>, <code>{seva_title}</code>, <code>{location}</code>, <code>{venue}</code>.</p>
+    <textarea id="whatsapp-template" class="seva-input" rows="7">{{ whatsapp_template }}</textarea>
+  </div>
+</div>
+
+<div class="grid two" style="margin-top:16px">
+  <div class="card">
+    <div class="split" style="margin-bottom:12px">
+      <div>
+        <h2>Seva on {{ selected_date|date:"d M Y" }}</h2>
+        <div class="mini">{{ selected_day_name }}</div>
+      </div>
+      <span class="pill">{{ events|length }} event{{ events|length|pluralize }}</span>
+    </div>
+
+    {% if events %}
+      <div class="list-stack">
+        {% for event in events %}
+        <div class="card" style="padding:14px;background:#fffdf8">
+          <div class="split">
+            <div>
+              <div style="font-weight:800;font-size:1rem">{{ event.title }}</div>
+              <div class="mini">{{ event.time_label }} · {{ event.get_seva_location_display }}{% if event.venue %} · {{ event.venue }}{% endif %}</div>
+              {% if event.description %}<div class="mini" style="margin-top:4px">{{ event.description }}</div>{% endif %}
+            </div>
+            <span class="pill">{{ event.matching_slots|length }} matching devotee{{ event.matching_slots|length|pluralize }}</span>
+          </div>
+          {% if event.matching_slots %}
+            <div class="list-stack" style="margin-top:12px">
+              {% for slot in event.matching_slots %}
+              <div class="split" style="padding:12px;border-radius:16px;background:#fff;border:1px solid var(--line)">
+                <div>
+                  <div style="font-weight:800">{{ slot.devotee.name }}</div>
+                  <div class="mini">{{ slot.start_time|time:"g:i A" }} - {{ slot.end_time|time:"g:i A" }} · {{ slot.devotee.preacher_name }}</div>
+                </div>
+                <div class="actions">
+                  <a href="tel:{{ slot.devotee.phone_number }}" class="action-link action-call"><i class="bi bi-telephone-fill"></i> Call</a>
+                  <a href="https://wa.me/{{ slot.devotee.wa_number }}"
+                     target="_blank"
+                     class="action-link action-wa js-wa-link"
+                     data-name="{{ slot.devotee.name }}"
+                     data-wa="{{ slot.devotee.wa_number }}"
+                     data-date="{{ selected_date|date:'d F Y' }}"
+                     data-time="{{ event.time_label }}"
+                     data-seva-title="{{ event.title }}"
+                     data-location="{{ event.get_seva_location_display }}"
+                     data-venue="{{ event.venue }}">
+                    <i class="bi bi-whatsapp"></i> WhatsApp
+                  </a>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="mini" style="margin-top:10px">No devotee availability exactly matches this seva timing and location yet.</div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="mini">No seva has been added for this date yet.</div>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <div class="split" style="margin-bottom:12px">
+      <div>
+        <h2>Available Devotees</h2>
+        <div class="mini">All devotees available on {{ selected_day_name }}</div>
+      </div>
+      <span class="pill">{{ available_slots|length }} slot{{ available_slots|length|pluralize }}</span>
+    </div>
+
+    {% if available_slots %}
+      <div class="list-stack">
+        {% for slot in available_slots %}
+        <div class="split" style="padding:12px;border-radius:16px;background:#fff;border:1px solid var(--line)">
+          <div>
+            <div style="font-weight:800">{{ slot.devotee.name }}</div>
+            <div class="mini">{{ slot.start_time|time:"g:i A" }} - {{ slot.end_time|time:"g:i A" }} · {{ slot.devotee.get_seva_location_display }}</div>
+            <div class="mini">{{ slot.devotee.phone_number }} · Preacher: {{ slot.devotee.preacher_name }}</div>
+          </div>
+          <div class="actions">
+            <a href="tel:{{ slot.devotee.phone_number }}" class="action-link action-call"><i class="bi bi-telephone-fill"></i> Call</a>
+            <a href="https://wa.me/{{ slot.devotee.wa_number }}"
+               target="_blank"
+               class="action-link action-wa js-wa-link"
+               data-name="{{ slot.devotee.name }}"
+               data-wa="{{ slot.devotee.wa_number }}"
+               data-date="{{ selected_date|date:'d F Y' }}"
+               data-time="{{ slot.start_time|time:'g:i A' }} - {{ slot.end_time|time:'g:i A' }}"
+               data-seva-title="General Seva"
+               data-location="{{ slot.devotee.get_seva_location_display }}"
+               data-venue="">
+              <i class="bi bi-whatsapp"></i> WhatsApp
+            </a>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="mini">No devotees are available on {{ selected_day_name }} yet.</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ whatsapp_template|json_script:"default-whatsapp-template" }}
+<script>
+  const DEFAULT_TEMPLATE = JSON.parse(document.getElementById('default-whatsapp-template').textContent);
+  const STORAGE_KEY = 'seva.whatsappTemplate';
+  const textarea = document.getElementById('whatsapp-template');
+
+  if (textarea) {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) textarea.value = saved;
+    textarea.addEventListener('input', function() {
+      localStorage.setItem(STORAGE_KEY, textarea.value);
+    });
+  }
+
+  function buildMessage(link) {
+    const template = textarea ? textarea.value : DEFAULT_TEMPLATE;
+    return template
+      .replaceAll('{name}', link.dataset.name || '')
+      .replaceAll('{date}', link.dataset.date || '')
+      .replaceAll('{time}', link.dataset.time || '')
+      .replaceAll('{seva_title}', link.dataset.sevaTitle || '')
+      .replaceAll('{location}', link.dataset.location || '')
+      .replaceAll('{venue}', link.dataset.venue || '');
+  }
+
+  document.querySelectorAll('.js-wa-link').forEach(function(link) {
+    link.addEventListener('click', function(event) {
+      event.preventDefault();
+      const encoded = encodeURIComponent(buildMessage(link));
+      window.open(`https://wa.me/${link.dataset.wa}?text=${encoded}`, '_blank');
+    });
+  });
+</script>
+{% endblock %}
+

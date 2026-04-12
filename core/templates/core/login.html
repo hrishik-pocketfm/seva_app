@@ -1,0 +1,23 @@
+{% extends 'core/base.html' %}
+{% block title %}Temple Login{% endblock %}
+{% block nav_login %}active{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width:520px;margin:36px auto;padding:28px">
+  <h1 style="margin-bottom:10px">Temple Devotee Login</h1>
+  <p class="lead" style="margin-bottom:18px">Use your registered phone number to open the seva dashboard.</p>
+  <form method="post">
+    {% csrf_token %}
+    <div style="margin-bottom:14px">
+      <label class="label">Phone Number</label>
+      {{ form.phone_number }}
+      {% if form.phone_number.errors %}<div class="mini" style="color:#dc2626">{{ form.phone_number.errors.0 }}</div>{% endif %}
+    </div>
+    <button type="submit" class="btn-primary" style="width:100%">
+      <i class="bi bi-box-arrow-in-right"></i> Login
+    </button>
+  </form>
+  <p class="mini" style="margin-top:18px">If you need a temple devotee account, an existing admin can add it from the Temple Devotees page.</p>
+</div>
+{% endblock %}
+

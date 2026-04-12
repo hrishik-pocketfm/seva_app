@@ -1,0 +1,113 @@
+{% extends 'core/base.html' %}
+{% load core_extras %}
+{% block title %}Seva Registration{% endblock %}
+{% block nav_public %}active{% endblock %}
+
+{% block content %}
+<section class="hero">
+  <h1>Offer Your Seva</h1>
+  <p class="lead">Share your availability once, and the temple team can contact you whenever seva is needed.</p>
+</section>
+
+<div class="grid two">
+  <div class="card">
+    <h2 style="margin-bottom:10px">Devotee Details</h2>
+    <p class="mini" style="margin-bottom:18px">This form is open to congregation devotees. No login is needed.</p>
+    <form method="post">
+      {% csrf_token %}
+      {% if form.non_field_errors %}
+        <div class="alert error" style="margin-bottom:12px">{{ form.non_field_errors.0 }}</div>
+      {% endif %}
+
+      <div style="display:grid;gap:12px">
+        <div>
+          <label class="label">Name</label>
+          {{ form.name }}
+          {% if form.name.errors %}<div class="mini" style="color:#dc2626">{{ form.name.errors.0 }}</div>{% endif %}
+        </div>
+        <div>
+          <label class="label">Phone No.</label>
+          {{ form.phone_number }}
+          {% if form.phone_number.errors %}<div class="mini" style="color:#dc2626">{{ form.phone_number.errors.0 }}</div>{% endif %}
+        </div>
+        <div class="grid two" style="gap:12px">
+          <div>
+            <label class="label">Age</label>
+            {{ form.age }}
+          </div>
+          <div>
+            <label class="label">Gender</label>
+            {{ form.gender }}
+          </div>
+        </div>
+        <div>
+          <label class="label">Address</label>
+          {{ form.address }}
+        </div>
+        <div>
+          <label class="label">Preacher's Name</label>
+          {{ form.preacher_name }}
+        </div>
+        <div>
+          <label class="label">Seva Location</label>
+          {{ form.seva_location }}
+        </div>
+        <div>
+          <label class="label">Additional Notes</label>
+          {{ form.notes }}
+        </div>
+      </div>
+
+      <div style="margin:22px 0 14px">
+        <h2 style="margin-bottom:8px">Availability for Seva</h2>
+        <p class="mini">Select the days you can serve and add your available time range for each one.</p>
+      </div>
+
+      <div class="list-stack">
+        {% for day in availability_fields %}
+        <div class="card" style="padding:14px;background:#fffdf9">
+          <div class="split">
+            <label style="display:flex;align-items:center;gap:10px;font-weight:800;color:var(--text);cursor:pointer">
+              <input type="checkbox"
+                     name="{{ day.enabled_name }}"
+                     value="1"
+                     {% if request.POST|get_item:day.enabled_name == '1' %}checked{% endif %}
+                     style="width:18px;height:18px;accent-color:#e67e22">
+              {{ day.label }}
+            </label>
+            <div class="grid two" style="gap:10px;flex:1;min-width:min(100%,280px)">
+              <input type="time" name="{{ day.start_name }}" value="{{ request.POST|get_item:day.start_name }}" class="seva-input">
+              <input type="time" name="{{ day.end_name }}" value="{{ request.POST|get_item:day.end_name }}" class="seva-input">
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+
+      <button type="submit" class="btn-primary" style="width:100%;margin-top:18px">
+        <i class="bi bi-heart-fill"></i> Submit Seva Availability
+      </button>
+    </form>
+  </div>
+
+  <div class="list-stack">
+    <div class="card">
+      <h2 style="margin-bottom:10px">What Happens Next</h2>
+      <div class="list-stack">
+        <div class="mini"><span class="pill">1</span> Your details are saved for the temple seva team.</div>
+        <div class="mini"><span class="pill">2</span> Temple devotees can filter by date and see who is available that day.</div>
+        <div class="mini"><span class="pill">3</span> They can call or message you directly on WhatsApp from the dashboard.</div>
+      </div>
+    </div>
+    <div class="card">
+      <h2 style="margin-bottom:10px">Seva Locations</h2>
+      <div class="list-stack">
+        <div class="mini"><strong>Temple Seva:</strong> seva inside temple premises.</div>
+        <div class="mini"><strong>Outside Seva:</strong> outreach, stalls, transport, or offsite support.</div>
+        <div class="mini"><strong>Home Seva:</strong> seva that can be coordinated from home.</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+

@@ -1,0 +1,55 @@
+{% extends 'core/base.html' %}
+{% block title %}All Responses{% endblock %}
+{% block nav_devotees %}active{% endblock %}
+
+{% block content %}
+<section class="hero">
+  <h1>All Seva Responses</h1>
+  <p class="lead">Search congregation devotees, review availability, and contact them directly.</p>
+</section>
+
+<div class="card" style="margin-bottom:16px">
+  <form method="get">
+    <div class="split" style="align-items:end">
+      <div style="flex:1">
+        <label class="label">Search</label>
+        <input type="text" name="q" value="{{ query }}" class="seva-input" placeholder="Search by name, phone, or preacher">
+      </div>
+      <button type="submit" class="btn-primary"><i class="bi bi-search"></i> Search</button>
+    </div>
+  </form>
+</div>
+
+<div class="list-stack">
+  {% for devotee in devotees %}
+  <div class="card">
+    <div class="split" style="margin-bottom:12px">
+      <div>
+        <div style="font-size:1.05rem;font-weight:800">{{ devotee.name }}</div>
+        <div class="mini">{{ devotee.phone_number }} · {{ devotee.get_gender_display }} · {{ devotee.age }} years</div>
+        <div class="mini">{{ devotee.get_seva_location_display }} · Preacher: {{ devotee.preacher_name }}</div>
+      </div>
+      <div class="actions">
+        <a href="tel:{{ devotee.phone_number }}" class="action-link action-call"><i class="bi bi-telephone-fill"></i> Call</a>
+        <a href="https://wa.me/{{ devotee.wa_number }}" target="_blank" class="action-link action-wa"><i class="bi bi-whatsapp"></i> WhatsApp</a>
+      </div>
+    </div>
+    <div class="mini" style="margin-bottom:10px"><strong>Address:</strong> {{ devotee.address }}</div>
+    {% if devotee.notes %}<div class="mini" style="margin-bottom:10px"><strong>Notes:</strong> {{ devotee.notes }}</div>{% endif %}
+    <div class="mini"><strong>Availability:</strong></div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">
+      {% for slot in devotee.availabilities.all %}
+        <span class="pill">{{ slot.get_day_of_week_display }} · {{ slot.start_time|time:"g:i A" }} - {{ slot.end_time|time:"g:i A" }}</span>
+      {% empty %}
+        <span class="mini">No availability added.</span>
+      {% endfor %}
+    </div>
+  </div>
+  {% empty %}
+  <div class="card">
+    <div class="mini">No seva responses found yet.</div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}
+

@@ -1,0 +1,49 @@
+{% extends 'core/base.html' %}
+{% block title %}Temple Devotees{% endblock %}
+{% block nav_users %}active{% endblock %}
+
+{% block content %}
+<section class="hero">
+  <h1>Temple Devotee Accounts</h1>
+  <p class="lead">Add phone-based login access for temple devotees who will manage seva.</p>
+</section>
+
+<div class="grid two">
+  <div class="card">
+    <h2 style="margin-bottom:12px">Add Temple Devotee</h2>
+    <form method="post">
+      {% csrf_token %}
+      <div style="display:grid;gap:12px">
+        <div>
+          <label class="label">Name</label>
+          {{ form.name }}
+          {% if form.name.errors %}<div class="mini" style="color:#dc2626">{{ form.name.errors.0 }}</div>{% endif %}
+        </div>
+        <div>
+          <label class="label">Phone Number</label>
+          {{ form.phone_number }}
+          {% if form.phone_number.errors %}<div class="mini" style="color:#dc2626">{{ form.phone_number.errors.0 }}</div>{% endif %}
+        </div>
+      </div>
+      <button type="submit" class="btn-primary" style="margin-top:16px;width:100%">
+        <i class="bi bi-person-plus-fill"></i> Create Account
+      </button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-bottom:12px">Current Accounts</h2>
+    <div class="list-stack">
+      {% for user in users %}
+      <div style="padding:12px;border-radius:16px;background:#fff;border:1px solid var(--line)">
+        <div style="font-weight:800">{{ user.name }}</div>
+        <div class="mini">{{ user.phone_number }}</div>
+      </div>
+      {% empty %}
+      <div class="mini">No temple devotee accounts yet.</div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
