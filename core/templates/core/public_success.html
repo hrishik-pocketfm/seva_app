@@ -1,18 +1,17 @@
 {% extends 'core/base.html' %}
-{% block title %}Submitted Successfully{% endblock %}
+{% block title %}जानकारी सफलतापूर्वक भेजी गई{% endblock %}
 {% block nav_public %}active{% endblock %}
 
 {% block content %}
 <div class="card" style="max-width:720px;margin:40px auto;text-align:center;padding:34px">
   <div style="font-size:3rem;color:var(--primary);margin-bottom:12px"><i class="bi bi-check2-circle"></i></div>
-  <h1 style="margin-bottom:10px">Seva Availability Submitted</h1>
+  <h1 style="margin-bottom:10px">सेवा जानकारी भेज दी गई है</h1>
   <p class="lead" style="max-width:520px;margin:0 auto 20px">
-    Your details have been saved. The temple seva team can now contact you whenever there is a matching service opportunity.
+    आपकी जानकारी सेव हो गई है। जब भी आपके समय के अनुसार सेवा होगी, मंदिर की सेवा टीम आपसे संपर्क कर सकेगी।
   </p>
   <div class="actions" style="justify-content:center">
-    <a href="{% url 'public_registration' %}" class="btn-primary">Submit Another Response</a>
+    <a href="{% url 'public_registration' %}" class="btn-primary">एक और फॉर्म भरें</a>
     <a href="{% url 'temple_login' %}" class="btn-secondary">Temple Devotee Login</a>
   </div>
 </div>
 {% endblock %}
-

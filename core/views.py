@@ -7,7 +7,7 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import Prefetch, Q
 from django.forms import ValidationError
 from django.http import Http404
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
 from .forms import (
@@ -17,10 +17,11 @@ from .forms import (
     UserCreateForm,
     availability_day_fields,
     normalize_phone_number,
+    public_form_choice_sets,
     validate_availability_post,
 )
-from .models import AvailabilitySlot, DevoteeRegistration, SevaEvent, User
-from .utils import DEFAULT_WHATSAPP_TEMPLATE, day_name_from_date, format_event_time, today_local
+from .models import AvailabilitySlot, DevoteeRegistration, SevaAllocation, SevaEvent, User
+from .utils import DEFAULT_WHATSAPP_TEMPLATE, PUBLIC_I18N, day_name_from_date, format_event_time, today_local
 
 
 LOGO_URL = 'https://hkmraipur.org/wp-content/uploads/2025/04/HKM-Raipur-Web-Logo-1536-x-921-1.jpg.webp'
@@ -46,7 +47,7 @@ def _selected_date(request):
     return today_local()
 
 
-def _event_matches_slot(event, slot):
+def _slot_matches_event(slot, event):
     return (
         slot.devotee.seva_location == event.seva_location and
         slot.start_time <= event.start_time and
@@ -54,20 +55,95 @@ def _event_matches_slot(event, slot):
     )
 
 
-def _available_devotees_for_date(selected_date):
-    day_index = selected_date.weekday()
-    slots = list(
-        AvailabilitySlot.objects.select_related('devotee')
-        .filter(day_of_week=day_index)
-        .order_by('start_time', 'devotee__name')
+def _owned_devotees_queryset(user):
+    return DevoteeRegistration.objects.filter(preacher=user).select_related('preacher').prefetch_related(
+        Prefetch('availabilities', queryset=AvailabilitySlot.objects.order_by('day_of_week', 'start_time')),
+        Prefetch('seva_allocations', queryset=SevaAllocation.objects.select_related('event').order_by('-allocated_at')),
     )
-    return day_index, slots
+
+
+def _selected_event(request, selected_date):
+    events = list(SevaEvent.objects.filter(date=selected_date).order_by('start_time', 'title'))
+    selected_event = None
+    raw_id = (request.GET.get('seva') or '').strip()
+    if raw_id:
+        try:
+            selected_event = next((event for event in events if event.pk == int(raw_id)), None)
+        except ValueError:
+            selected_event = None
+    return events, selected_event
+
+
+def _build_devotee_cards(devotees, day_index, selected_event):
+    cards = []
+    for devotee in devotees:
+        day_slots = [slot for slot in devotee.availabilities.all() if slot.day_of_week == day_index]
+        matching_slots = day_slots
+        if selected_event:
+            matching_slots = [slot for slot in day_slots if _slot_matches_event(slot, selected_event)]
+
+        allocation = None
+        if selected_event:
+            allocation = next((item for item in devotee.seva_allocations.all() if item.event_id == selected_event.pk), None)
+
+        devotee.day_slots = day_slots
+        devotee.matching_slots = matching_slots
+        devotee.is_matching_selected_event = bool(matching_slots)
+        devotee.selected_event_allocation = allocation
+        cards.append(devotee)
+    return cards
+
+
+def _dashboard_context(request):
+    selected_date = _selected_date(request)
+    day_index = selected_date.weekday()
+    events, selected_event = _selected_event(request, selected_date)
+    query = request.GET.get('q', '').strip()
+
+    devotees = _owned_devotees_queryset(request.user).order_by('name')
+    if query:
+        devotees = devotees.filter(
+            Q(name__icontains=query) |
+            Q(phone_number__icontains=query) |
+            Q(address__icontains=query)
+        )
+
+    devotees = list(devotees)
+    devotee_cards = _build_devotee_cards(devotees, day_index, selected_event)
+
+    if selected_event:
+        matching_count = sum(1 for devotee in devotee_cards if devotee.is_matching_selected_event)
+        allocated_count = sum(1 for devotee in devotee_cards if devotee.selected_event_allocation)
+    else:
+        matching_count = sum(1 for devotee in devotee_cards if devotee.day_slots)
+        allocated_count = 0
+
+    return {
+        'logo_url': LOGO_URL,
+        'selected_date': selected_date,
+        'selected_day_name': day_name_from_date(selected_date),
+        'events': events,
+        'selected_event': selected_event,
+        'devotees': devotee_cards,
+        'query': query,
+        'whatsapp_template': DEFAULT_WHATSAPP_TEMPLATE,
+        'devotees_count': _owned_devotees_queryset(request.user).count(),
+        'events_count': len(events),
+        'matching_count': matching_count,
+        'allocated_count': allocated_count,
+    }
 
 
 def public_registration(request):
     availability_fields = availability_day_fields()
+    existing = None
     if request.method == 'POST':
-        form = DevoteeRegistrationForm(request.POST)
+        normalized_phone = normalize_phone_number(request.POST.get('phone_number', ''))
+        if normalized_phone:
+            existing = DevoteeRegistration.objects.filter(phone_number=normalized_phone).first()
+    form = DevoteeRegistrationForm(request.POST or None, instance=existing)
+
+    if request.method == 'POST':
         try:
             slots = validate_availability_post(request.POST)
         except ValidationError as exc:
@@ -75,9 +151,23 @@ def public_registration(request):
             form.add_error(None, exc)
 
         if form.is_valid() and slots is not None:
-            devotee = form.save(commit=False)
-            devotee.phone_number = normalize_phone_number(devotee.phone_number)
+            phone_number = normalize_phone_number(form.cleaned_data['phone_number'])
+            devotee = existing or DevoteeRegistration(phone_number=phone_number)
+
+            devotee.name = form.cleaned_data['name']
+            devotee.phone_number = phone_number
+            devotee.age = form.cleaned_data['age']
+            devotee.gender = form.cleaned_data['gender']
+            devotee.address = form.cleaned_data['address']
+            devotee.preacher = form.cleaned_data['preacher']
+            devotee.seva_location = form.cleaned_data['seva_location']
+            devotee.japa_rounds = form.cleaned_data['japa_rounds']
+            devotee.connected_since_value = form.cleaned_data['connected_since_value']
+            devotee.connected_since_unit = form.cleaned_data['connected_since_unit']
+            devotee.notes = form.cleaned_data['notes']
             devotee.save()
+
+            devotee.availabilities.all().delete()
             for slot in slots:
                 AvailabilitySlot.objects.create(
                     devotee=devotee,
@@ -85,15 +175,19 @@ def public_registration(request):
                     start_time=slot['start_time'],
                     end_time=slot['end_time'],
                 )
-            messages.success(request, 'Your seva availability has been submitted successfully.')
+
+            if existing:
+                messages.success(request, 'आपकी पुरानी जानकारी फोन नंबर से मिल गई। हमने उसे अपडेट कर दिया है।')
+            else:
+                messages.success(request, 'आपकी सेवा उपलब्धता सफलतापूर्वक सेव हो गई है।')
             return redirect('public_success')
-    else:
-        form = DevoteeRegistrationForm()
 
     return render(request, 'core/public_registration.html', {
         'form': form,
         'availability_fields': availability_fields,
         'logo_url': LOGO_URL,
+        'i18n': PUBLIC_I18N,
+        **public_form_choice_sets(),
     })
 
 
@@ -122,46 +216,77 @@ def logout_view(request):
 
 @admin_required
 def temple_dashboard(request):
-    selected_date = _selected_date(request)
-    day_index, available_slots = _available_devotees_for_date(selected_date)
-    events = list(SevaEvent.objects.filter(date=selected_date).order_by('start_time', 'title'))
-
-    for event in events:
-        event.matching_slots = [slot for slot in available_slots if _event_matches_slot(event, slot)]
-        event.time_label = format_event_time(event)
-
-    return render(request, 'core/temple_dashboard.html', {
-        'logo_url': LOGO_URL,
-        'selected_date': selected_date,
-        'selected_day_name': day_name_from_date(selected_date),
-        'available_slots': available_slots,
-        'events': events,
-        'day_index': day_index,
-        'whatsapp_template': DEFAULT_WHATSAPP_TEMPLATE,
-        'devotees_count': DevoteeRegistration.objects.count(),
-        'events_count': SevaEvent.objects.count(),
-    })
+    return render(request, 'core/temple_dashboard.html', _dashboard_context(request))
 
 
 @admin_required
 def devotee_list(request):
-    query = request.GET.get('q', '').strip()
-    devotees = DevoteeRegistration.objects.prefetch_related(
-        Prefetch('availabilities', queryset=AvailabilitySlot.objects.order_by('day_of_week', 'start_time'))
-    ).order_by('name')
-    if query:
-        devotees = devotees.filter(
-            Q(name__icontains=query) |
-            Q(phone_number__icontains=query) |
-            Q(preacher_name__icontains=query)
-        )
-    return render(request, 'core/devotee_list.html', {
+    return redirect(f"{reverse('temple_dashboard')}?{request.GET.urlencode()}" if request.GET else reverse('temple_dashboard'))
+
+
+@admin_required
+def devotee_detail(request, pk):
+    devotee = get_object_or_404(_owned_devotees_queryset(request.user), pk=pk)
+    selected_date = _selected_date(request)
+    events, selected_event = _selected_event(request, selected_date)
+    day_index = selected_date.weekday()
+    day_slots = [slot for slot in devotee.availabilities.all() if slot.day_of_week == day_index]
+    matching_slots = day_slots if not selected_event else [slot for slot in day_slots if _slot_matches_event(slot, selected_event)]
+    current_allocation = None
+    if selected_event:
+        current_allocation = next((item for item in devotee.seva_allocations.all() if item.event_id == selected_event.pk), None)
+
+    return render(request, 'core/devotee_detail.html', {
         'logo_url': LOGO_URL,
-        'devotees': devotees,
-        'query': query,
+        'devotee': devotee,
+        'selected_date': selected_date,
+        'selected_day_name': day_name_from_date(selected_date),
+        'events': events,
+        'selected_event': selected_event,
+        'matching_slots': matching_slots,
+        'current_allocation': current_allocation,
         'whatsapp_template': DEFAULT_WHATSAPP_TEMPLATE,
-        'selected_date': today_local(),
     })
+
+
+@admin_required
+def allocate_seva(request):
+    if request.method != 'POST':
+        raise Http404
+
+    devotee = get_object_or_404(_owned_devotees_queryset(request.user), pk=request.POST.get('devotee_id'))
+    event = get_object_or_404(SevaEvent, pk=request.POST.get('event_id'))
+    has_matching_slot = AvailabilitySlot.objects.filter(devotee=devotee, day_of_week=event.date.weekday()).exists()
+    matching_slot = any(_slot_matches_event(slot, event) for slot in devotee.availabilities.filter(day_of_week=event.date.weekday()))
+
+    if not has_matching_slot or not matching_slot:
+        messages.error(request, 'यह भक्त चुनी हुई सेवा के समय उपलब्ध नहीं है, इसलिए अभी allocate नहीं किया गया।')
+    else:
+        allocation, created = SevaAllocation.objects.get_or_create(
+            event=event,
+            devotee=devotee,
+            defaults={'allocated_by': request.user}
+        )
+        if not created:
+            messages.success(request, 'यह सेवा पहले से ही इस भक्त को allocate की हुई है।')
+        else:
+            messages.success(request, f'{devotee.name} को "{event.title}" सेवा allocate कर दी गई है।')
+
+    next_url = request.POST.get('next') or reverse('temple_dashboard')
+    return redirect(next_url)
+
+
+@admin_required
+def unallocate_seva(request):
+    if request.method != 'POST':
+        raise Http404
+
+    devotee = get_object_or_404(_owned_devotees_queryset(request.user), pk=request.POST.get('devotee_id'))
+    event = get_object_or_404(SevaEvent, pk=request.POST.get('event_id'))
+    SevaAllocation.objects.filter(devotee=devotee, event=event).delete()
+    messages.success(request, f'{devotee.name} से "{event.title}" सेवा allocation हटा दिया गया है।')
+    next_url = request.POST.get('next') or reverse('temple_dashboard')
+    return redirect(next_url)
 
 
 @admin_required
@@ -172,7 +297,7 @@ def seva_event_new(request):
         event.created_by = request.user
         event.save()
         messages.success(request, 'Seva added successfully.')
-        return redirect(f"{reverse('temple_dashboard')}?date={event.date.isoformat()}")
+        return redirect(f"{reverse('temple_dashboard')}?date={event.date.isoformat()}&seva={event.pk}")
     return render(request, 'core/seva_event_form.html', {
         'logo_url': LOGO_URL,
         'form': form,

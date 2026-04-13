@@ -1,6 +1,15 @@
 from django import forms
 
-from .models import DAY_OF_WEEK_CHOICES, DevoteeRegistration, SevaEvent, User
+from .models import (
+    CONNECTED_SINCE_UNIT_CHOICES,
+    DAY_OF_WEEK_CHOICES,
+    DevoteeRegistration,
+    GENDER_CHOICES,
+    JAPA_ROUND_CHOICES,
+    SEVA_LOCATION_CHOICES,
+    SevaEvent,
+    User,
+)
 
 
 class LoginForm(forms.Form):
@@ -15,11 +24,18 @@ class LoginForm(forms.Form):
 
 
 class DevoteeRegistrationForm(forms.ModelForm):
+    preacher = forms.ModelChoiceField(
+        queryset=User.objects.none(),
+        empty_label='एक प्रचारक चुनें',
+        widget=forms.Select(attrs={'class': 'seva-input'})
+    )
+
     class Meta:
         model = DevoteeRegistration
         fields = [
             'name', 'phone_number', 'age', 'gender', 'address',
-            'preacher_name', 'seva_location', 'notes',
+            'preacher', 'seva_location', 'japa_rounds',
+            'connected_since_value', 'connected_since_unit', 'notes',
         ]
         widgets = {
             'name': forms.TextInput(attrs={'class': 'seva-input', 'placeholder': 'Full name'}),
@@ -27,10 +43,16 @@ class DevoteeRegistrationForm(forms.ModelForm):
             'age': forms.NumberInput(attrs={'class': 'seva-input', 'placeholder': 'Age', 'min': '1', 'max': '120'}),
             'gender': forms.Select(attrs={'class': 'seva-input'}),
             'address': forms.Textarea(attrs={'class': 'seva-input', 'rows': 3, 'placeholder': 'Full address'}),
-            'preacher_name': forms.TextInput(attrs={'class': 'seva-input', 'placeholder': 'Preacher name'}),
             'seva_location': forms.Select(attrs={'class': 'seva-input'}),
+            'japa_rounds': forms.Select(attrs={'class': 'seva-input'}),
+            'connected_since_value': forms.NumberInput(attrs={'class': 'seva-input', 'placeholder': '1', 'min': '1', 'max': '100'}),
+            'connected_since_unit': forms.Select(attrs={'class': 'seva-input'}),
             'notes': forms.Textarea(attrs={'class': 'seva-input', 'rows': 2, 'placeholder': 'Any additional notes'}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['preacher'].queryset = User.objects.filter(is_admin=True, is_active=True).order_by('name')
 
 
 class SevaEventForm(forms.ModelForm):
@@ -61,11 +83,22 @@ class UserCreateForm(forms.Form):
 
 def availability_day_fields():
     fields = []
+    hindi_labels = {
+        'Monday': 'सोमवार',
+        'Tuesday': 'मंगलवार',
+        'Wednesday': 'बुधवार',
+        'Thursday': 'गुरुवार',
+        'Friday': 'शुक्रवार',
+        'Saturday': 'शनिवार',
+        'Sunday': 'रविवार',
+    }
     for day_value, day_label in DAY_OF_WEEK_CHOICES:
         slug = day_label.lower()
         fields.append({
             'value': day_value,
             'label': day_label,
+            'label_hi': hindi_labels[day_label],
+            'label_en': day_label,
             'enabled_name': f'{slug}_enabled',
             'start_name': f'{slug}_start',
             'end_name': f'{slug}_end',
@@ -97,3 +130,11 @@ def validate_availability_post(post_data):
 def normalize_phone_number(value):
     return ''.join(ch for ch in value if ch.isdigit())
 
+
+def public_form_choice_sets():
+    return {
+        'gender_choices': GENDER_CHOICES,
+        'seva_location_choices': SEVA_LOCATION_CHOICES,
+        'japa_round_choices': JAPA_ROUND_CHOICES,
+        'connected_since_unit_choices': CONNECTED_SINCE_UNIT_CHOICES,
+    }

@@ -1,152 +1,170 @@
 {% extends 'core/base.html' %}
-{% block title %}Seva Dashboard{% endblock %}
+{% block title %}My Congregation Devotees{% endblock %}
 {% block nav_dashboard %}active{% endblock %}
 
 {% block content %}
 <section class="hero">
-  <h1>Temple Seva Dashboard</h1>
-  <p class="lead">Pick a date to see seva scheduled for that day and the devotees available to help on {{ selected_day_name }}.</p>
+  <h1>My Congregation Devotees</h1>
+  <p class="lead">Only the devotees who selected you as preacher are shown here. Search, call, WhatsApp, and allocate seva from one place.</p>
 </section>
 
 <div class="grid three" style="margin-bottom:16px">
   <div class="card">
-    <span class="label">Total Responses</span>
+    <span class="label">My Devotees</span>
     <div class="stat">{{ devotees_count }}</div>
   </div>
   <div class="card">
-    <span class="label">Total Seva Added</span>
-    <div class="stat">{{ events_count }}</div>
+    <span class="label">{% if selected_event %}Matching Selected Seva{% else %}Available on {{ selected_day_name }}{% endif %}</span>
+    <div class="stat">{{ matching_count }}</div>
   </div>
   <div class="card">
-    <span class="label">Available On {{ selected_day_name }}</span>
-    <div class="stat">{{ available_slots|length }}</div>
+    <span class="label">{% if selected_event %}Allocated for Selected Seva{% else %}Seva on Selected Date{% endif %}</span>
+    <div class="stat">{% if selected_event %}{{ allocated_count }}{% else %}{{ events_count }}{% endif %}</div>
   </div>
 </div>
 
-<div class="grid two">
+<div class="grid two" style="margin-bottom:16px">
   <div class="card">
     <div class="split" style="align-items:center;margin-bottom:14px">
       <div>
-        <h2 style="margin-bottom:6px">Filter by Date</h2>
-        <div class="mini">Choose any date to see matching devotees for that weekday.</div>
+        <h2 style="margin-bottom:6px">Filter Devotees</h2>
+        <div class="mini">Choose a date, optionally select a seva, and search by name or phone.</div>
       </div>
       <a href="{% url 'seva_event_new' %}" class="btn-primary"><i class="bi bi-plus-lg"></i> Add Seva</a>
     </div>
     <form method="get">
-      <label class="label">Date</label>
+      <div class="grid two" style="margin-bottom:12px">
+        <div>
+          <label class="label">Date</label>
+          <input type="date" name="date" value="{{ selected_date|date:'Y-m-d' }}" class="seva-input">
+        </div>
+        <div>
+          <label class="label">Seva on This Date</label>
+          <select name="seva" class="seva-input">
+            <option value="">All devotees for {{ selected_day_name }}</option>
+            {% for event in events %}
+            <option value="{{ event.pk }}" {% if selected_event and selected_event.pk == event.pk %}selected{% endif %}>
+              {{ event.title }} · {{ event.start_time|time:"g:i A" }} - {{ event.end_time|time:"g:i A" }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
       <div class="split" style="align-items:end">
-        <input type="date" name="date" value="{{ selected_date|date:'Y-m-d' }}" class="seva-input">
-        <button type="submit" class="btn-secondary">Show</button>
+        <div style="flex:1">
+          <label class="label">Search</label>
+          <input type="text" name="q" value="{{ query }}" class="seva-input" placeholder="Search by name, phone, or address">
+        </div>
+        <button type="submit" class="btn-secondary">Apply</button>
       </div>
     </form>
   </div>
 
   <div class="card">
     <h2 style="margin-bottom:8px">WhatsApp Message</h2>
-    <p class="mini" style="margin-bottom:10px">Customize once and send from the buttons below. Tokens: <code>{name}</code>, <code>{date}</code>, <code>{time}</code>, <code>{seva_title}</code>, <code>{location}</code>, <code>{venue}</code>.</p>
+    <p class="mini" style="margin-bottom:10px">Customize once and send from the devotee list. Tokens: <code>{name}</code>, <code>{date}</code>, <code>{time}</code>, <code>{seva_title}</code>, <code>{location}</code>, <code>{venue}</code>.</p>
     <textarea id="whatsapp-template" class="seva-input" rows="7">{{ whatsapp_template }}</textarea>
+    {% if selected_event %}
+    <div class="mini" style="margin-top:10px">
+      Selected seva: <strong>{{ selected_event.title }}</strong> · {{ selected_event.start_time|time:"g:i A" }} - {{ selected_event.end_time|time:"g:i A" }}
+    </div>
+    {% else %}
+    <div class="mini" style="margin-top:10px">Select a seva above if you want allocation buttons to appear in the list.</div>
+    {% endif %}
   </div>
 </div>
 
-<div class="grid two" style="margin-top:16px">
+{% if selected_event %}
+<div class="card" style="margin-bottom:16px">
+  <div class="split" style="margin-bottom:10px">
+    <div>
+      <h2>{{ selected_event.title }}</h2>
+      <div class="mini">{{ selected_date|date:"d M Y" }} · {{ selected_event.start_time|time:"g:i A" }} - {{ selected_event.end_time|time:"g:i A" }} · {{ selected_event.get_seva_location_display }}{% if selected_event.venue %} · {{ selected_event.venue }}{% endif %}</div>
+    </div>
+    <span class="pill">{{ allocated_count }} allocated</span>
+  </div>
+  {% if selected_event.description %}
+  <div class="mini">{{ selected_event.description }}</div>
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="list-stack">
+  {% for devotee in devotees %}
   <div class="card">
     <div class="split" style="margin-bottom:12px">
       <div>
-        <h2>Seva on {{ selected_date|date:"d M Y" }}</h2>
-        <div class="mini">{{ selected_day_name }}</div>
+        <a href="{% url 'devotee_detail' devotee.pk %}?date={{ selected_date|date:'Y-m-d' }}{% if selected_event %}&seva={{ selected_event.pk }}{% endif %}"
+           style="font-size:1.05rem;font-weight:800;color:var(--text);text-decoration:none">
+          {{ devotee.name }}
+        </a>
+        <div class="mini">{{ devotee.phone_number }} · {{ devotee.get_gender_display }} · {{ devotee.age }} years</div>
+        <div class="mini">{{ devotee.get_seva_location_display }} · Japa: {{ devotee.japa_rounds }} rounds · Connected: {{ devotee.connected_since_label }}</div>
       </div>
-      <span class="pill">{{ events|length }} event{{ events|length|pluralize }}</span>
+      <div class="actions">
+        <a href="tel:{{ devotee.phone_number }}" class="action-link action-call"><i class="bi bi-telephone-fill"></i> Call</a>
+        <a href="https://wa.me/{{ devotee.wa_number }}"
+           target="_blank"
+           class="action-link action-wa js-wa-link"
+           data-name="{{ devotee.name }}"
+           data-wa="{{ devotee.wa_number }}"
+           data-date="{{ selected_date|date:'d F Y' }}"
+           data-time="{% if selected_event %}{{ selected_event.start_time|time:'g:i A' }} - {{ selected_event.end_time|time:'g:i A' }}{% elif devotee.day_slots %}{{ devotee.day_slots.0.start_time|time:'g:i A' }} - {{ devotee.day_slots.0.end_time|time:'g:i A' }}{% endif %}"
+           data-seva-title="{% if selected_event %}{{ selected_event.title }}{% else %}General Seva{% endif %}"
+           data-location="{% if selected_event %}{{ selected_event.get_seva_location_display }}{% else %}{{ devotee.get_seva_location_display }}{% endif %}"
+           data-venue="{% if selected_event %}{{ selected_event.venue }}{% endif %}">
+          <i class="bi bi-whatsapp"></i> WhatsApp
+        </a>
+      </div>
     </div>
 
-    {% if events %}
-      <div class="list-stack">
-        {% for event in events %}
-        <div class="card" style="padding:14px;background:#fffdf8">
-          <div class="split">
-            <div>
-              <div style="font-weight:800;font-size:1rem">{{ event.title }}</div>
-              <div class="mini">{{ event.time_label }} · {{ event.get_seva_location_display }}{% if event.venue %} · {{ event.venue }}{% endif %}</div>
-              {% if event.description %}<div class="mini" style="margin-top:4px">{{ event.description }}</div>{% endif %}
-            </div>
-            <span class="pill">{{ event.matching_slots|length }} matching devotee{{ event.matching_slots|length|pluralize }}</span>
-          </div>
-          {% if event.matching_slots %}
-            <div class="list-stack" style="margin-top:12px">
-              {% for slot in event.matching_slots %}
-              <div class="split" style="padding:12px;border-radius:16px;background:#fff;border:1px solid var(--line)">
-                <div>
-                  <div style="font-weight:800">{{ slot.devotee.name }}</div>
-                  <div class="mini">{{ slot.start_time|time:"g:i A" }} - {{ slot.end_time|time:"g:i A" }} · {{ slot.devotee.preacher_name }}</div>
-                </div>
-                <div class="actions">
-                  <a href="tel:{{ slot.devotee.phone_number }}" class="action-link action-call"><i class="bi bi-telephone-fill"></i> Call</a>
-                  <a href="https://wa.me/{{ slot.devotee.wa_number }}"
-                     target="_blank"
-                     class="action-link action-wa js-wa-link"
-                     data-name="{{ slot.devotee.name }}"
-                     data-wa="{{ slot.devotee.wa_number }}"
-                     data-date="{{ selected_date|date:'d F Y' }}"
-                     data-time="{{ event.time_label }}"
-                     data-seva-title="{{ event.title }}"
-                     data-location="{{ event.get_seva_location_display }}"
-                     data-venue="{{ event.venue }}">
-                    <i class="bi bi-whatsapp"></i> WhatsApp
-                  </a>
-                </div>
-              </div>
-              {% endfor %}
-            </div>
+    <div class="mini" style="margin-bottom:8px"><strong>Address:</strong> {{ devotee.address }}</div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+      {% for slot in devotee.day_slots %}
+      <span class="pill">{{ selected_day_name }} · {{ slot.start_time|time:"g:i A" }} - {{ slot.end_time|time:"g:i A" }}</span>
+      {% empty %}
+      <span class="mini">No availability on {{ selected_day_name }}.</span>
+      {% endfor %}
+    </div>
+
+    {% if selected_event %}
+      <div class="split" style="align-items:center">
+        <div class="mini">
+          {% if devotee.selected_event_allocation %}
+            <span style="color:#16a34a;font-weight:800">Allocated for this seva.</span>
+          {% elif devotee.is_matching_selected_event %}
+            <span style="color:#c55f07;font-weight:800">Available for selected seva.</span>
           {% else %}
-            <div class="mini" style="margin-top:10px">No devotee availability exactly matches this seva timing and location yet.</div>
+            <span>No matching time/location for the selected seva.</span>
           {% endif %}
         </div>
-        {% endfor %}
-      </div>
-    {% else %}
-      <div class="mini">No seva has been added for this date yet.</div>
-    {% endif %}
-  </div>
-
-  <div class="card">
-    <div class="split" style="margin-bottom:12px">
-      <div>
-        <h2>Available Devotees</h2>
-        <div class="mini">All devotees available on {{ selected_day_name }}</div>
-      </div>
-      <span class="pill">{{ available_slots|length }} slot{{ available_slots|length|pluralize }}</span>
-    </div>
-
-    {% if available_slots %}
-      <div class="list-stack">
-        {% for slot in available_slots %}
-        <div class="split" style="padding:12px;border-radius:16px;background:#fff;border:1px solid var(--line)">
-          <div>
-            <div style="font-weight:800">{{ slot.devotee.name }}</div>
-            <div class="mini">{{ slot.start_time|time:"g:i A" }} - {{ slot.end_time|time:"g:i A" }} · {{ slot.devotee.get_seva_location_display }}</div>
-            <div class="mini">{{ slot.devotee.phone_number }} · Preacher: {{ slot.devotee.preacher_name }}</div>
-          </div>
-          <div class="actions">
-            <a href="tel:{{ slot.devotee.phone_number }}" class="action-link action-call"><i class="bi bi-telephone-fill"></i> Call</a>
-            <a href="https://wa.me/{{ slot.devotee.wa_number }}"
-               target="_blank"
-               class="action-link action-wa js-wa-link"
-               data-name="{{ slot.devotee.name }}"
-               data-wa="{{ slot.devotee.wa_number }}"
-               data-date="{{ selected_date|date:'d F Y' }}"
-               data-time="{{ slot.start_time|time:'g:i A' }} - {{ slot.end_time|time:'g:i A' }}"
-               data-seva-title="General Seva"
-               data-location="{{ slot.devotee.get_seva_location_display }}"
-               data-venue="">
-              <i class="bi bi-whatsapp"></i> WhatsApp
-            </a>
-          </div>
+        <div class="actions">
+          {% if devotee.selected_event_allocation %}
+          <form method="post" action="{% url 'unallocate_seva' %}">
+            {% csrf_token %}
+            <input type="hidden" name="devotee_id" value="{{ devotee.pk }}">
+            <input type="hidden" name="event_id" value="{{ selected_event.pk }}">
+            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+            <button type="submit" class="btn-danger"><i class="bi bi-x-circle"></i> Remove Allocation</button>
+          </form>
+          {% elif devotee.is_matching_selected_event %}
+          <form method="post" action="{% url 'allocate_seva' %}">
+            {% csrf_token %}
+            <input type="hidden" name="devotee_id" value="{{ devotee.pk }}">
+            <input type="hidden" name="event_id" value="{{ selected_event.pk }}">
+            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+            <button type="submit" class="btn-primary"><i class="bi bi-check2-circle"></i> Allocate Seva</button>
+          </form>
+          {% endif %}
         </div>
-        {% endfor %}
       </div>
-    {% else %}
-      <div class="mini">No devotees are available on {{ selected_day_name }} yet.</div>
     {% endif %}
   </div>
+  {% empty %}
+  <div class="card">
+    <div class="mini">No congregation devotees found for your account yet.</div>
+  </div>
+  {% endfor %}
 </div>
 {% endblock %}
 

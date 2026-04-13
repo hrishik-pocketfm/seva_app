@@ -1,18 +1,64 @@
 {% extends 'core/base.html' %}
 {% load core_extras %}
-{% block title %}Seva Registration{% endblock %}
+{% block title %}सेवा पंजीकरण{% endblock %}
 {% block nav_public %}active{% endblock %}
 
 {% block content %}
+<style>
+  .lang-toggle {
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+    max-width:360px;
+    margin:0 0 18px auto;
+  }
+  .lang-toggle button {
+    min-height:48px;
+    border-radius:18px;
+    border:1px solid rgba(230,126,34,0.18);
+    background:#fff;
+    color:var(--muted);
+    font-size:1rem;
+    font-weight:800;
+    cursor:pointer;
+  }
+  .lang-toggle button.active {
+    background:linear-gradient(135deg, #f6a24a, var(--primary));
+    color:#fff;
+    border-color:transparent;
+  }
+  .day-time-grid {
+    display:grid;
+    grid-template-columns:repeat(2, minmax(0, 1fr));
+    gap:10px;
+    flex:1;
+    min-width:min(100%,280px);
+  }
+  @media (max-width:720px) {
+    .lang-toggle {
+      margin:0 0 18px;
+      max-width:none;
+    }
+    .day-time-grid {
+      grid-template-columns:1fr;
+    }
+  }
+</style>
+
+<div class="lang-toggle">
+  <button type="button" id="lang-hi" class="active">हिंदी</button>
+  <button type="button" id="lang-en">English</button>
+</div>
+
 <section class="hero">
-  <h1>Offer Your Seva</h1>
-  <p class="lead">Share your availability once, and the temple team can contact you whenever seva is needed.</p>
+  <h1 data-i18n="hero_title">सेवा के लिए अपना नाम दें</h1>
+  <p class="lead" data-i18n="hero_subtitle">अपनी उपलब्धता भर दीजिए। मंदिर की टीम जरूरत होने पर आपसे संपर्क करेगी।</p>
 </section>
 
 <div class="grid two">
   <div class="card">
-    <h2 style="margin-bottom:10px">Devotee Details</h2>
-    <p class="mini" style="margin-bottom:18px">This form is open to congregation devotees. No login is needed.</p>
+    <h2 style="margin-bottom:10px" data-i18n="details_title">भक्त का विवरण</h2>
+    <p class="mini" style="margin-bottom:18px" data-i18n="details_subtitle">यह फॉर्म सभी कांग्रिगेशन भक्तों के लिए है। लॉगिन की जरूरत नहीं है।</p>
     <form method="post">
       {% csrf_token %}
       {% if form.non_field_errors %}
@@ -21,46 +67,113 @@
 
       <div style="display:grid;gap:12px">
         <div>
-          <label class="label">Name</label>
-          {{ form.name }}
+          <label class="label" data-i18n="name">नाम</label>
+          <input type="text" name="name" class="seva-input" value="{{ form.name.value|default:'' }}"
+                 data-ph-hi="पूरा नाम" data-ph-en="Full name" placeholder="पूरा नाम" required>
           {% if form.name.errors %}<div class="mini" style="color:#dc2626">{{ form.name.errors.0 }}</div>{% endif %}
         </div>
         <div>
-          <label class="label">Phone No.</label>
-          {{ form.phone_number }}
+          <label class="label" data-i18n="phone">फोन नंबर</label>
+          <input type="text" name="phone_number" class="seva-input" value="{{ form.phone_number.value|default:'' }}"
+                 data-ph-hi="मोबाइल नंबर" data-ph-en="Phone number" placeholder="मोबाइल नंबर" inputmode="numeric" required>
           {% if form.phone_number.errors %}<div class="mini" style="color:#dc2626">{{ form.phone_number.errors.0 }}</div>{% endif %}
         </div>
         <div class="grid two" style="gap:12px">
           <div>
-            <label class="label">Age</label>
-            {{ form.age }}
+            <label class="label" data-i18n="age">उम्र</label>
+            <input type="number" name="age" class="seva-input" value="{{ form.age.value|default:'' }}"
+                   data-ph-hi="उम्र" data-ph-en="Age" placeholder="उम्र" min="1" max="120" required>
+            {% if form.age.errors %}<div class="mini" style="color:#dc2626">{{ form.age.errors.0 }}</div>{% endif %}
           </div>
           <div>
-            <label class="label">Gender</label>
-            {{ form.gender }}
+            <label class="label" data-i18n="gender">लिंग</label>
+            <select name="gender" class="seva-input" required>
+              <option value="">---</option>
+              {% for value, label in gender_choices %}
+              <option value="{{ value }}"
+                      data-hi="{% if value == 'M' %}पुरुष{% elif value == 'F' %}महिला{% else %}अन्य{% endif %}"
+                      data-en="{{ label }}"
+                      {% if form.gender.value == value %}selected{% endif %}>
+                {% if value == 'M' %}पुरुष{% elif value == 'F' %}महिला{% else %}अन्य{% endif %}
+              </option>
+              {% endfor %}
+            </select>
           </div>
         </div>
         <div>
-          <label class="label">Address</label>
-          {{ form.address }}
+          <label class="label" data-i18n="address">पता</label>
+          <textarea name="address" class="seva-input" rows="3"
+                    data-ph-hi="पूरा पता" data-ph-en="Full address" placeholder="पूरा पता" required>{{ form.address.value|default:'' }}</textarea>
         </div>
         <div>
-          <label class="label">Preacher's Name</label>
-          {{ form.preacher_name }}
+          <label class="label" data-i18n="preacher">प्रचारक का नाम</label>
+          <select name="preacher" class="seva-input" required>
+            <option value="">एक प्रचारक चुनें</option>
+            {% for preacher in form.fields.preacher.queryset %}
+            <option value="{{ preacher.pk }}" {% if form.preacher.value|stringformat:'s' == preacher.pk|stringformat:'s' %}selected{% endif %}>
+              {{ preacher.name }}
+            </option>
+            {% endfor %}
+          </select>
+          {% if form.preacher.errors %}<div class="mini" style="color:#dc2626">{{ form.preacher.errors.0 }}</div>{% endif %}
         </div>
         <div>
-          <label class="label">Seva Location</label>
-          {{ form.seva_location }}
+          <label class="label" data-i18n="location">सेवा का स्थान</label>
+          <select name="seva_location" class="seva-input" required>
+            <option value="">---</option>
+            {% for value, label in seva_location_choices %}
+            <option value="{{ value }}"
+                    data-hi="{% if value == 'TEMPLE' %}मंदिर सेवा{% elif value == 'OUTSIDE' %}बाहर सेवा{% else %}घर सेवा{% endif %}"
+                    data-en="{{ label }}"
+                    {% if form.seva_location.value == value %}selected{% endif %}>
+              {% if value == 'TEMPLE' %}मंदिर सेवा{% elif value == 'OUTSIDE' %}बाहर सेवा{% else %}घर सेवा{% endif %}
+            </option>
+            {% endfor %}
+          </select>
         </div>
         <div>
-          <label class="label">Additional Notes</label>
-          {{ form.notes }}
+          <label class="label" data-i18n="japa_rounds">रोज कितने राउंड जप करते हैं?</label>
+          <select name="japa_rounds" class="seva-input" required>
+            {% for value, label in japa_round_choices %}
+            <option value="{{ value }}" {% if form.japa_rounds.value|stringformat:'s' == value|stringformat:'s' %}selected{% endif %}>
+              {{ label }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="grid two" style="gap:12px">
+          <div>
+            <label class="label" data-i18n="connected_since">मंदिर से कब से जुड़े हैं?</label>
+            <input type="number" name="connected_since_value" class="seva-input"
+                   value="{{ form.connected_since_value.value|default:'1' }}"
+                   data-ph-hi="संख्या" data-ph-en="Number" placeholder="संख्या" min="1" max="100" required>
+          </div>
+          <div>
+            <label class="label" data-i18n="connected_since">&nbsp;</label>
+            <select name="connected_since_unit" class="seva-input" required>
+              {% for value, label in connected_since_unit_choices %}
+              <option value="{{ value }}"
+                      data-hi="{% if value == 'MONTHS' %}महीने{% else %}साल{% endif %}"
+                      data-en="{{ label }}"
+                      {% if form.connected_since_unit.value == value or not form.connected_since_unit.value and value == 'MONTHS' %}selected{% endif %}>
+                {% if value == 'MONTHS' %}महीने{% else %}साल{% endif %}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="label" data-i18n="notes">कोई और जानकारी</label>
+          <textarea name="notes" class="seva-input" rows="2"
+                    data-ph-hi="अगर कुछ और बताना हो तो यहाँ लिखें"
+                    data-ph-en="Any additional notes"
+                    placeholder="अगर कुछ और बताना हो तो यहाँ लिखें">{{ form.notes.value|default:'' }}</textarea>
         </div>
       </div>
 
       <div style="margin:22px 0 14px">
-        <h2 style="margin-bottom:8px">Availability for Seva</h2>
-        <p class="mini">Select the days you can serve and add your available time range for each one.</p>
+        <h2 style="margin-bottom:8px" data-i18n="availability_title">सेवा के लिए उपलब्धता</h2>
+        <p class="mini" data-i18n="availability_subtitle">जिस दिन सेवा कर सकते हैं, वह दिन चुनें और समय भी भरें।</p>
       </div>
 
       <div class="list-stack">
@@ -73,11 +186,13 @@
                      value="1"
                      {% if request.POST|get_item:day.enabled_name == '1' %}checked{% endif %}
                      style="width:18px;height:18px;accent-color:#e67e22">
-              {{ day.label }}
+              <span data-day-hi="{{ day.label_hi }}" data-day-en="{{ day.label_en }}">{{ day.label_hi }}</span>
             </label>
-            <div class="grid two" style="gap:10px;flex:1;min-width:min(100%,280px)">
-              <input type="time" name="{{ day.start_name }}" value="{{ request.POST|get_item:day.start_name }}" class="seva-input">
-              <input type="time" name="{{ day.end_name }}" value="{{ request.POST|get_item:day.end_name }}" class="seva-input">
+            <div class="day-time-grid">
+              <input type="time" name="{{ day.start_name }}" value="{{ request.POST|get_item:day.start_name }}"
+                     class="seva-input" data-ph-hi="शुरू समय" data-ph-en="Start time" placeholder="शुरू समय">
+              <input type="time" name="{{ day.end_name }}" value="{{ request.POST|get_item:day.end_name }}"
+                     class="seva-input" data-ph-hi="समाप्त समय" data-ph-en="End time" placeholder="समाप्त समय">
             </div>
           </div>
         </div>
@@ -85,29 +200,69 @@
       </div>
 
       <button type="submit" class="btn-primary" style="width:100%;margin-top:18px">
-        <i class="bi bi-heart-fill"></i> Submit Seva Availability
+        <i class="bi bi-heart-fill"></i> <span data-i18n="submit">सेवा उपलब्धता भेजें</span>
       </button>
     </form>
   </div>
 
   <div class="list-stack">
     <div class="card">
-      <h2 style="margin-bottom:10px">What Happens Next</h2>
+      <h2 style="margin-bottom:10px" data-i18n="how_next_title">आगे क्या होगा</h2>
       <div class="list-stack">
-        <div class="mini"><span class="pill">1</span> Your details are saved for the temple seva team.</div>
-        <div class="mini"><span class="pill">2</span> Temple devotees can filter by date and see who is available that day.</div>
-        <div class="mini"><span class="pill">3</span> They can call or message you directly on WhatsApp from the dashboard.</div>
+        <div class="mini"><span class="pill">1</span> <span data-i18n="how_next_1">आपकी जानकारी मंदिर की सेवा टीम के पास सेव हो जाएगी।</span></div>
+        <div class="mini"><span class="pill">2</span> <span data-i18n="how_next_2">मंदिर के भक्त दिन देखकर देख सकेंगे कि कौन उपलब्ध है।</span></div>
+        <div class="mini"><span class="pill">3</span> <span data-i18n="how_next_3">वे आपको सीधे फोन या व्हाट्सऐप कर सकेंगे।</span></div>
       </div>
     </div>
     <div class="card">
-      <h2 style="margin-bottom:10px">Seva Locations</h2>
+      <h2 style="margin-bottom:10px" data-i18n="locations_title">सेवा स्थान</h2>
       <div class="list-stack">
-        <div class="mini"><strong>Temple Seva:</strong> seva inside temple premises.</div>
-        <div class="mini"><strong>Outside Seva:</strong> outreach, stalls, transport, or offsite support.</div>
-        <div class="mini"><strong>Home Seva:</strong> seva that can be coordinated from home.</div>
+        <div class="mini"><strong>1.</strong> <span data-i18n="location_temple">मंदिर सेवा: मंदिर परिसर के अंदर की सेवा।</span></div>
+        <div class="mini"><strong>2.</strong> <span data-i18n="location_outside">बाहर सेवा: प्रचार, स्टॉल, यात्रा या बाहर की सेवा।</span></div>
+        <div class="mini"><strong>3.</strong> <span data-i18n="location_home">घर सेवा: घर से की जा सकने वाली सेवा।</span></div>
       </div>
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+{{ i18n|json_script:"public-i18n" }}
+<script>
+  const translations = JSON.parse(document.getElementById('public-i18n').textContent);
+  const langButtons = {
+    hi: document.getElementById('lang-hi'),
+    en: document.getElementById('lang-en'),
+  };
+
+  function applyLanguage(lang) {
+    localStorage.setItem('seva.public.lang', lang);
+    document.documentElement.lang = lang === 'hi' ? 'hi' : 'en';
+
+    Object.entries(langButtons).forEach(([code, btn]) => {
+      btn.classList.toggle('active', code === lang);
+    });
+
+    document.querySelectorAll('[data-i18n]').forEach((node) => {
+      node.textContent = translations[lang][node.dataset.i18n];
+    });
+
+    document.querySelectorAll('[data-ph-hi]').forEach((node) => {
+      node.placeholder = lang === 'hi' ? node.dataset.phHi : node.dataset.phEn;
+    });
+
+    document.querySelectorAll('option[data-hi]').forEach((node) => {
+      node.textContent = lang === 'hi' ? node.dataset.hi : node.dataset.en;
+    });
+
+    document.querySelectorAll('[data-day-hi]').forEach((node) => {
+      node.textContent = lang === 'hi' ? node.dataset.dayHi : node.dataset.dayEn;
+    });
+  }
+
+  langButtons.hi.addEventListener('click', () => applyLanguage('hi'));
+  langButtons.en.addEventListener('click', () => applyLanguage('en'));
+  applyLanguage(localStorage.getItem('seva.public.lang') || 'hi');
+</script>
 {% endblock %}
 

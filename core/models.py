@@ -25,6 +25,17 @@ DAY_OF_WEEK_CHOICES = [
     (6, 'Sunday'),
 ]
 
+JAPA_ROUND_CHOICES = [(i, str(i)) for i in range(0, 17)] + [
+    (24, '24'),
+    (32, '32'),
+    (64, '64'),
+]
+
+CONNECTED_SINCE_UNIT_CHOICES = [
+    ('MONTHS', 'Months'),
+    ('YEARS', 'Years'),
+]
+
 
 class UserManager(BaseUserManager):
     def create_user(self, phone_number, name, **extra_fields):
@@ -60,13 +71,22 @@ class User(AbstractBaseUser, PermissionsMixin):
 
 class DevoteeRegistration(models.Model):
     name = models.CharField(max_length=150)
-    phone_number = models.CharField(max_length=15)
+    phone_number = models.CharField(max_length=15, unique=True)
     age = models.PositiveIntegerField()
     gender = models.CharField(max_length=1, choices=GENDER_CHOICES)
     address = models.TextField()
-    preacher_name = models.CharField(max_length=150)
+    preacher = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='congregation_devotees'
+    )
     seva_location = models.CharField(max_length=10, choices=SEVA_LOCATION_CHOICES)
+    japa_rounds = models.PositiveSmallIntegerField(choices=JAPA_ROUND_CHOICES, default=0)
+    connected_since_value = models.PositiveIntegerField(default=1)
+    connected_since_unit = models.CharField(max_length=10, choices=CONNECTED_SINCE_UNIT_CHOICES, default='MONTHS')
     notes = models.TextField(blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -74,6 +94,15 @@ class DevoteeRegistration(models.Model):
 
     def __str__(self):
         return self.name
+
+    @property
+    def preacher_name(self):
+        return self.preacher.name if self.preacher else ''
+
+    @property
+    def connected_since_label(self):
+        unit = self.get_connected_since_unit_display()
+        return f'{self.connected_since_value} {unit}'
 
     @property
     def wa_number(self):
@@ -127,3 +156,30 @@ class SevaEvent(models.Model):
     def __str__(self):
         return f'{self.title} - {self.date}'
 
+
+class SevaAllocation(models.Model):
+    event = models.ForeignKey(
+        SevaEvent,
+        on_delete=models.CASCADE,
+        related_name='allocations'
+    )
+    devotee = models.ForeignKey(
+        DevoteeRegistration,
+        on_delete=models.CASCADE,
+        related_name='seva_allocations'
+    )
+    allocated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='seva_allocations_made'
+    )
+    notes = models.TextField(blank=True)
+    allocated_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-allocated_at']
+        unique_together = [('event', 'devotee')]
+
+    def __str__(self):
+        return f'{self.devotee.name} -> {self.event.title}'
