@@ -9,6 +9,11 @@ GENDER_CHOICES = [
     ('O', 'Other'),
 ]
 
+INITIATED_CHOICES = [
+    ('YES', 'Yes'),
+    ('NO', 'No'),
+]
+
 SEVA_LOCATION_CHOICES = [
     ('TEMPLE', 'Temple Seva'),
     ('OUTSIDE', 'Outside Seva'),
@@ -34,6 +39,20 @@ JAPA_ROUND_CHOICES = [(i, str(i)) for i in range(0, 17)] + [
 CONNECTED_SINCE_UNIT_CHOICES = [
     ('MONTHS', 'Months'),
     ('YEARS', 'Years'),
+]
+
+PREACHER_CHOICES = [
+    ('Gopavrinda Pala dasa', 'Gopavrinda Pala dasa'),
+    ('Gaura Gopala dasa', 'Gaura Gopala dasa'),
+    ('Sumadhura Krishna dasa', 'Sumadhura Krishna dasa'),
+    ('Bharata Shreshtha dasa', 'Bharata Shreshtha dasa'),
+    ('Gaura Shyama dasa', 'Gaura Shyama dasa'),
+    ('Abhaya Prahlada dasa', 'Abhaya Prahlada dasa'),
+    ('Nimai Priya dasa', 'Nimai Priya dasa'),
+    ('Lokanath Govinda dasa', 'Lokanath Govinda dasa'),
+    ('Mayapur Shashi dasa', 'Mayapur Shashi dasa'),
+    ('Sakaleshwar Rama dasa', 'Sakaleshwar Rama dasa'),
+    ('Parmananda Chaitanya dasa', 'Parmananda Chaitanya dasa'),
 ]
 
 
@@ -72,15 +91,11 @@ class User(AbstractBaseUser, PermissionsMixin):
 class DevoteeRegistration(models.Model):
     name = models.CharField(max_length=150)
     phone_number = models.CharField(max_length=15, unique=True)
+    initiated = models.CharField(max_length=3, choices=INITIATED_CHOICES, default='NO')
     age = models.PositiveIntegerField()
     gender = models.CharField(max_length=1, choices=GENDER_CHOICES)
     address = models.TextField()
-    preacher = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        related_name='congregation_devotees'
-    )
+    preacher = models.CharField(max_length=150, choices=PREACHER_CHOICES, blank=True, default='')
     seva_location = models.CharField(max_length=10, choices=SEVA_LOCATION_CHOICES)
     japa_rounds = models.PositiveSmallIntegerField(choices=JAPA_ROUND_CHOICES, default=0)
     connected_since_value = models.PositiveIntegerField(default=1)
@@ -97,7 +112,7 @@ class DevoteeRegistration(models.Model):
 
     @property
     def preacher_name(self):
-        return self.preacher.name if self.preacher else ''
+        return self.preacher
 
     @property
     def connected_since_label(self):
@@ -135,13 +150,13 @@ class AvailabilitySlot(models.Model):
 
 
 class SevaEvent(models.Model):
-    title = models.CharField(max_length=160)
+    title = models.CharField(max_length=160, blank=True, default='')
     description = models.TextField(blank=True)
-    seva_location = models.CharField(max_length=10, choices=SEVA_LOCATION_CHOICES)
+    seva_location = models.CharField(max_length=10, choices=SEVA_LOCATION_CHOICES, blank=True, default='')
     venue = models.CharField(max_length=200, blank=True)
     date = models.DateField()
-    start_time = models.TimeField()
-    end_time = models.TimeField()
+    start_time = models.TimeField(null=True, blank=True)
+    end_time = models.TimeField(null=True, blank=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -154,7 +169,11 @@ class SevaEvent(models.Model):
         ordering = ['date', 'start_time', 'title']
 
     def __str__(self):
-        return f'{self.title} - {self.date}'
+        return f'{self.display_title} - {self.date}'
+
+    @property
+    def display_title(self):
+        return self.title or 'Seva'
 
 
 class SevaAllocation(models.Model):

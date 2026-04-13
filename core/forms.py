@@ -5,7 +5,9 @@ from .models import (
     DAY_OF_WEEK_CHOICES,
     DevoteeRegistration,
     GENDER_CHOICES,
+    INITIATED_CHOICES,
     JAPA_ROUND_CHOICES,
+    PREACHER_CHOICES,
     SEVA_LOCATION_CHOICES,
     SevaEvent,
     User,
@@ -24,22 +26,22 @@ class LoginForm(forms.Form):
 
 
 class DevoteeRegistrationForm(forms.ModelForm):
-    preacher = forms.ModelChoiceField(
-        queryset=User.objects.none(),
-        empty_label='एक प्रचारक चुनें',
+    preacher = forms.ChoiceField(
+        choices=PREACHER_CHOICES,
         widget=forms.Select(attrs={'class': 'seva-input'})
     )
 
     class Meta:
         model = DevoteeRegistration
         fields = [
-            'name', 'phone_number', 'age', 'gender', 'address',
+            'name', 'phone_number', 'initiated', 'age', 'gender', 'address',
             'preacher', 'seva_location', 'japa_rounds',
             'connected_since_value', 'connected_since_unit', 'notes',
         ]
         widgets = {
             'name': forms.TextInput(attrs={'class': 'seva-input', 'placeholder': 'Full name'}),
             'phone_number': forms.TextInput(attrs={'class': 'seva-input', 'placeholder': 'Phone number', 'inputmode': 'numeric'}),
+            'initiated': forms.Select(attrs={'class': 'seva-input'}),
             'age': forms.NumberInput(attrs={'class': 'seva-input', 'placeholder': 'Age', 'min': '1', 'max': '120'}),
             'gender': forms.Select(attrs={'class': 'seva-input'}),
             'address': forms.Textarea(attrs={'class': 'seva-input', 'rows': 3, 'placeholder': 'Full address'}),
@@ -50,12 +52,19 @@ class DevoteeRegistrationForm(forms.ModelForm):
             'notes': forms.Textarea(attrs={'class': 'seva-input', 'rows': 2, 'placeholder': 'Any additional notes'}),
         }
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields['preacher'].queryset = User.objects.filter(is_admin=True, is_active=True).order_by('name')
-
 
 class SevaEventForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field_name in ['title', 'description', 'seva_location', 'venue', 'start_time', 'end_time']:
+            self.fields[field_name].required = False
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if not cleaned_data.get('title'):
+            cleaned_data['title'] = 'Seva'
+        return cleaned_data
+
     class Meta:
         model = SevaEvent
         fields = ['title', 'description', 'seva_location', 'venue', 'date', 'start_time', 'end_time']
@@ -134,6 +143,8 @@ def normalize_phone_number(value):
 def public_form_choice_sets():
     return {
         'gender_choices': GENDER_CHOICES,
+        'initiated_choices': INITIATED_CHOICES,
+        'preacher_choices': PREACHER_CHOICES,
         'seva_location_choices': SEVA_LOCATION_CHOICES,
         'japa_round_choices': JAPA_ROUND_CHOICES,
         'connected_since_unit_choices': CONNECTED_SINCE_UNIT_CHOICES,

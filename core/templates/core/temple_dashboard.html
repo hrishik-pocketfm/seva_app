@@ -1,16 +1,16 @@
 {% extends 'core/base.html' %}
-{% block title %}My Congregation Devotees{% endblock %}
+{% block title %}Congregation Devotees{% endblock %}
 {% block nav_dashboard %}active{% endblock %}
 
 {% block content %}
 <section class="hero">
-  <h1>My Congregation Devotees</h1>
-  <p class="lead">Only the devotees who selected you as preacher are shown here. Search, call, WhatsApp, and allocate seva from one place.</p>
+  <h1>Congregation Devotees</h1>
+  <p class="lead">All temple devotees can see all congregation data here. Search, call, WhatsApp, and allocate seva from one place.</p>
 </section>
 
 <div class="grid three" style="margin-bottom:16px">
   <div class="card">
-    <span class="label">My Devotees</span>
+    <span class="label">Total Devotees</span>
     <div class="stat">{{ devotees_count }}</div>
   </div>
   <div class="card">
@@ -100,6 +100,7 @@
         </a>
         <div class="mini">{{ devotee.phone_number }} · {{ devotee.get_gender_display }} · {{ devotee.age }} years</div>
         <div class="mini">{{ devotee.get_seva_location_display }} · Japa: {{ devotee.japa_rounds }} rounds · Connected: {{ devotee.connected_since_label }}</div>
+        <div class="mini">Preacher: {{ devotee.preacher_name }} · Initiated: {% if devotee.initiated == 'YES' %}Yes{% else %}No{% endif %}</div>
       </div>
       <div class="actions">
         <a href="tel:{{ devotee.phone_number }}" class="action-link action-call"><i class="bi bi-telephone-fill"></i> Call</a>
@@ -162,7 +163,7 @@
   </div>
   {% empty %}
   <div class="card">
-    <div class="mini">No congregation devotees found for your account yet.</div>
+    <div class="mini">No congregation devotees found yet.</div>
   </div>
   {% endfor %}
 </div>
@@ -203,4 +204,3 @@
   });
 </script>
 {% endblock %}
-

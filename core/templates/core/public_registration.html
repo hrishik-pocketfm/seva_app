@@ -78,6 +78,19 @@
                  data-ph-hi="मोबाइल नंबर" data-ph-en="Phone number" placeholder="मोबाइल नंबर" inputmode="numeric" required>
           {% if form.phone_number.errors %}<div class="mini" style="color:#dc2626">{{ form.phone_number.errors.0 }}</div>{% endif %}
         </div>
+        <div>
+          <label class="label">क्या आप दीक्षित हैं?</label>
+          <select name="initiated" class="seva-input" required>
+            {% for value, label in initiated_choices %}
+            <option value="{{ value }}"
+                    data-hi="{% if value == 'YES' %}हाँ{% else %}नहीं{% endif %}"
+                    data-en="{{ label }}"
+                    {% if form.initiated.value == value or not form.initiated.value and value == 'NO' %}selected{% endif %}>
+              {% if value == 'YES' %}हाँ{% else %}नहीं{% endif %}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
         <div class="grid two" style="gap:12px">
           <div>
             <label class="label" data-i18n="age">उम्र</label>
@@ -109,9 +122,9 @@
           <label class="label" data-i18n="preacher">प्रचारक का नाम</label>
           <select name="preacher" class="seva-input" required>
             <option value="">एक प्रचारक चुनें</option>
-            {% for preacher in form.fields.preacher.queryset %}
-            <option value="{{ preacher.pk }}" {% if form.preacher.value|stringformat:'s' == preacher.pk|stringformat:'s' %}selected{% endif %}>
-              {{ preacher.name }}
+            {% for value, label in preacher_choices %}
+            <option value="{{ value }}" {% if form.preacher.value == value %}selected{% endif %}>
+              {{ label }}
             </option>
             {% endfor %}
           </select>
@@ -265,4 +278,3 @@
   applyLanguage(localStorage.getItem('seva.public.lang') || 'hi');
 </script>
 {% endblock %}
-

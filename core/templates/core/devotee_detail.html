@@ -20,6 +20,7 @@
     <h2 style="margin-bottom:12px">Submitted Details</h2>
     <div class="list-stack">
       <div class="mini"><strong>Phone:</strong> {{ devotee.phone_number }}</div>
+      <div class="mini"><strong>Initiated:</strong> {% if devotee.initiated == 'YES' %}Yes{% else %}No{% endif %}</div>
       <div class="mini"><strong>Age:</strong> {{ devotee.age }}</div>
       <div class="mini"><strong>Gender:</strong> {{ devotee.get_gender_display }}</div>
       <div class="mini"><strong>Address:</strong> {{ devotee.address }}</div>
@@ -143,4 +144,3 @@
   });
 </script>
 {% endblock %}
-

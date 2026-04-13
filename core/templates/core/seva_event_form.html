@@ -5,7 +5,7 @@
 {% block content %}
 <section class="hero">
   <h1>Add Seva</h1>
-  <p class="lead">Create a seva entry with date, timing, and location so available devotees can be matched quickly.</p>
+  <p class="lead">Only date is compulsory. You can keep title, location, venue, and time blank if you want to add them later.</p>
 </section>
 
 <div class="card" style="max-width:760px">
@@ -15,31 +15,38 @@
       <div>
         <label class="label">Seva Title</label>
         {{ form.title }}
+        <div class="mini">Optional</div>
       </div>
       <div>
         <label class="label">Seva Location</label>
         {{ form.seva_location }}
+        <div class="mini">Optional</div>
       </div>
       <div>
         <label class="label">Date</label>
         {{ form.date }}
+        <div class="mini">Required</div>
       </div>
       <div>
         <label class="label">Venue</label>
         {{ form.venue }}
+        <div class="mini">Optional</div>
       </div>
       <div>
         <label class="label">Start Time</label>
         {{ form.start_time }}
+        <div class="mini">Optional</div>
       </div>
       <div>
         <label class="label">End Time</label>
         {{ form.end_time }}
+        <div class="mini">Optional</div>
       </div>
     </div>
     <div style="margin-top:14px">
       <label class="label">Description</label>
       {{ form.description }}
+      <div class="mini">Optional</div>
     </div>
     <div class="actions" style="margin-top:18px">
       <button type="submit" class="btn-primary"><i class="bi bi-check2"></i> Save Seva</button>
@@ -48,4 +55,3 @@
   </form>
 </div>
 {% endblock %}
-
