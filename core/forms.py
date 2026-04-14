@@ -1,7 +1,6 @@
 from django import forms
 
 from .models import (
-    CONNECTED_SINCE_UNIT_CHOICES,
     DAY_OF_WEEK_CHOICES,
     DevoteeRegistration,
     GENDER_CHOICES,
@@ -9,6 +8,7 @@ from .models import (
     JAPA_ROUND_CHOICES,
     PREACHER_CHOICES,
     SEVA_LOCATION_CHOICES,
+    SpecialSevaDate,
     SevaEvent,
     User,
 )
@@ -36,7 +36,7 @@ class DevoteeRegistrationForm(forms.ModelForm):
         fields = [
             'name', 'phone_number', 'initiated', 'age', 'gender', 'address',
             'preacher', 'seva_location', 'japa_rounds',
-            'connected_since_value', 'connected_since_unit', 'notes',
+            'connected_since', 'notes',
         ]
         widgets = {
             'name': forms.TextInput(attrs={'class': 'seva-input', 'placeholder': 'Full name'}),
@@ -47,8 +47,7 @@ class DevoteeRegistrationForm(forms.ModelForm):
             'address': forms.Textarea(attrs={'class': 'seva-input', 'rows': 3, 'placeholder': 'Full address'}),
             'seva_location': forms.Select(attrs={'class': 'seva-input'}),
             'japa_rounds': forms.Select(attrs={'class': 'seva-input'}),
-            'connected_since_value': forms.NumberInput(attrs={'class': 'seva-input', 'placeholder': '1', 'min': '1', 'max': '100'}),
-            'connected_since_unit': forms.Select(attrs={'class': 'seva-input'}),
+            'connected_since': forms.TextInput(attrs={'class': 'seva-input', 'placeholder': '6 months / 2 years'}),
             'notes': forms.Textarea(attrs={'class': 'seva-input', 'rows': 2, 'placeholder': 'Any additional notes'}),
         }
 
@@ -76,6 +75,29 @@ class SevaEventForm(forms.ModelForm):
             'date': forms.DateInput(attrs={'class': 'seva-input', 'type': 'date'}),
             'start_time': forms.TimeInput(attrs={'class': 'seva-input', 'type': 'time'}),
             'end_time': forms.TimeInput(attrs={'class': 'seva-input', 'type': 'time'}),
+        }
+
+
+class SpecialSevaDateForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field_name in ['title', 'description', 'venue']:
+            self.fields[field_name].required = False
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if not cleaned_data.get('title'):
+            cleaned_data['title'] = 'Special Seva'
+        return cleaned_data
+
+    class Meta:
+        model = SpecialSevaDate
+        fields = ['title', 'description', 'venue', 'date']
+        widgets = {
+            'title': forms.TextInput(attrs={'class': 'seva-input', 'placeholder': 'Special seva title'}),
+            'description': forms.Textarea(attrs={'class': 'seva-input', 'rows': 3, 'placeholder': 'Description'}),
+            'venue': forms.TextInput(attrs={'class': 'seva-input', 'placeholder': 'Venue / area'}),
+            'date': forms.DateInput(attrs={'class': 'seva-input', 'type': 'date'}),
         }
 
 
@@ -147,5 +169,4 @@ def public_form_choice_sets():
         'preacher_choices': PREACHER_CHOICES,
         'seva_location_choices': SEVA_LOCATION_CHOICES,
         'japa_round_choices': JAPA_ROUND_CHOICES,
-        'connected_since_unit_choices': CONNECTED_SINCE_UNIT_CHOICES,
     }

@@ -305,7 +305,8 @@
       </a>
       <nav class="nav">
         {% if user.is_authenticated %}
-          <a href="{% url 'temple_dashboard' %}" class="{% block nav_dashboard %}{% endblock %}">My Devotees</a>
+          <a href="{% url 'temple_dashboard' %}" class="{% block nav_dashboard %}{% endblock %}">Devotees</a>
+          <a href="{% url 'special_seva_dates' %}" class="{% block nav_special_dates %}{% endblock %}">Special Dates</a>
           <a href="{% url 'seva_event_new' %}" class="{% block nav_seva %}{% endblock %}">Add Seva</a>
           <a href="{% url 'temple_user_list' %}" class="{% block nav_users %}{% endblock %}">Temple Devotees</a>
           <span class="pill" style="background:#fff;border-color:rgba(230,126,34,0.15)">{{ user.name }}</span>

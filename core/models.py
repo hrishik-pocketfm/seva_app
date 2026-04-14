@@ -1,3 +1,5 @@
+from datetime import date
+
 from django.conf import settings
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.db import models
@@ -34,11 +36,6 @@ JAPA_ROUND_CHOICES = [(i, str(i)) for i in range(0, 17)] + [
     (24, '24'),
     (32, '32'),
     (64, '64'),
-]
-
-CONNECTED_SINCE_UNIT_CHOICES = [
-    ('MONTHS', 'Months'),
-    ('YEARS', 'Years'),
 ]
 
 PREACHER_CHOICES = [
@@ -98,8 +95,7 @@ class DevoteeRegistration(models.Model):
     preacher = models.CharField(max_length=150, choices=PREACHER_CHOICES, blank=True, default='')
     seva_location = models.CharField(max_length=10, choices=SEVA_LOCATION_CHOICES)
     japa_rounds = models.PositiveSmallIntegerField(choices=JAPA_ROUND_CHOICES, default=0)
-    connected_since_value = models.PositiveIntegerField(default=1)
-    connected_since_unit = models.CharField(max_length=10, choices=CONNECTED_SINCE_UNIT_CHOICES, default='MONTHS')
+    connected_since = models.CharField(max_length=80)
     notes = models.TextField(blank=True)
     updated_at = models.DateTimeField(auto_now=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -116,8 +112,7 @@ class DevoteeRegistration(models.Model):
 
     @property
     def connected_since_label(self):
-        unit = self.get_connected_since_unit_display()
-        return f'{self.connected_since_value} {unit}'
+        return self.connected_since
 
     @property
     def wa_number(self):
@@ -175,6 +170,65 @@ class SevaEvent(models.Model):
     def display_title(self):
         return self.title or 'Seva'
 
+    @property
+    def time_label(self):
+        if self.start_time and self.end_time:
+            return f'{self.start_time.strftime("%I:%M %p")} - {self.end_time.strftime("%I:%M %p")}'
+        if self.start_time:
+            return self.start_time.strftime('%I:%M %p')
+        if self.end_time:
+            return self.end_time.strftime('%I:%M %p')
+        return ''
+
+
+class SpecialSevaDate(models.Model):
+    title = models.CharField(max_length=160, blank=True, default='')
+    description = models.TextField(blank=True)
+    venue = models.CharField(max_length=200, blank=True)
+    date = models.DateField(unique=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='special_seva_dates_created'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['date', 'title']
+
+    def __str__(self):
+        return f'{self.display_title} - {self.date}'
+
+    @property
+    def display_title(self):
+        return self.title or 'Special Seva'
+
+    @property
+    def is_upcoming(self):
+        return self.date >= date.today()
+
+
+class SpecialSevaSignup(models.Model):
+    special_date = models.ForeignKey(
+        SpecialSevaDate,
+        on_delete=models.CASCADE,
+        related_name='signups'
+    )
+    devotee = models.ForeignKey(
+        DevoteeRegistration,
+        on_delete=models.CASCADE,
+        related_name='special_seva_signups'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['special_date__date', 'devotee__name']
+        unique_together = [('special_date', 'devotee')]
+
+    def __str__(self):
+        return f'{self.devotee.name} -> {self.special_date.display_title}'
+
 
 class SevaAllocation(models.Model):
     event = models.ForeignKey(
@@ -201,4 +255,4 @@ class SevaAllocation(models.Model):
         unique_together = [('event', 'devotee')]
 
     def __str__(self):
-        return f'{self.devotee.name} -> {self.event.title}'
+        return f'{self.devotee.name} -> {self.event.display_title}'

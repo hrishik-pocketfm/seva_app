@@ -1,7 +1,15 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
-from .models import AvailabilitySlot, DevoteeRegistration, SevaAllocation, SevaEvent, User
+from .models import (
+    AvailabilitySlot,
+    DevoteeRegistration,
+    SevaAllocation,
+    SevaEvent,
+    SpecialSevaDate,
+    SpecialSevaSignup,
+    User,
+)
 
 
 class AvailabilityInline(admin.TabularInline):
@@ -31,8 +39,8 @@ class UserAdmin(BaseUserAdmin):
 @admin.register(DevoteeRegistration)
 class DevoteeRegistrationAdmin(admin.ModelAdmin):
     list_display = ('name', 'phone_number', 'seva_location', 'preacher', 'japa_rounds', 'created_at')
-    search_fields = ('name', 'phone_number', 'preacher__name')
-    list_filter = ('seva_location', 'gender', 'connected_since_unit', 'preacher')
+    search_fields = ('name', 'phone_number', 'preacher', 'connected_since')
+    list_filter = ('seva_location', 'gender', 'preacher', 'initiated')
     inlines = [AvailabilityInline]
 
 
@@ -48,3 +56,17 @@ class SevaAllocationAdmin(admin.ModelAdmin):
     list_display = ('devotee', 'event', 'allocated_by', 'allocated_at')
     list_filter = ('allocated_at', 'event__date')
     search_fields = ('devotee__name', 'event__title', 'allocated_by__name')
+
+
+@admin.register(SpecialSevaDate)
+class SpecialSevaDateAdmin(admin.ModelAdmin):
+    list_display = ('display_title', 'date', 'venue', 'created_by')
+    list_filter = ('date',)
+    search_fields = ('title', 'venue', 'description')
+
+
+@admin.register(SpecialSevaSignup)
+class SpecialSevaSignupAdmin(admin.ModelAdmin):
+    list_display = ('devotee', 'special_date', 'created_at')
+    list_filter = ('special_date__date',)
+    search_fields = ('devotee__name', 'devotee__phone_number', 'special_date__title')

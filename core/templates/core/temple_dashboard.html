@@ -21,6 +21,10 @@
     <span class="label">{% if selected_event %}Allocated for Selected Seva{% else %}Seva on Selected Date{% endif %}</span>
     <div class="stat">{% if selected_event %}{{ allocated_count }}{% else %}{{ events_count }}{% endif %}</div>
   </div>
+  <div class="card">
+    <span class="label">Upcoming Special Dates</span>
+    <div class="stat">{{ special_dates_count }}</div>
+  </div>
 </div>
 
 <div class="grid two" style="margin-bottom:16px">
@@ -30,7 +34,10 @@
         <h2 style="margin-bottom:6px">Filter Devotees</h2>
         <div class="mini">Choose a date, optionally select a seva, and search by name or phone.</div>
       </div>
-      <a href="{% url 'seva_event_new' %}" class="btn-primary"><i class="bi bi-plus-lg"></i> Add Seva</a>
+      <div class="actions">
+        <a href="{% url 'special_seva_dates' %}" class="btn-secondary"><i class="bi bi-stars"></i> Special Dates</a>
+        <a href="{% url 'seva_event_new' %}" class="btn-primary"><i class="bi bi-plus-lg"></i> Add Seva</a>
+      </div>
     </div>
     <form method="get">
       <div class="grid two" style="margin-bottom:12px">
@@ -44,7 +51,7 @@
             <option value="">All devotees for {{ selected_day_name }}</option>
             {% for event in events %}
             <option value="{{ event.pk }}" {% if selected_event and selected_event.pk == event.pk %}selected{% endif %}>
-              {{ event.title }} · {{ event.start_time|time:"g:i A" }} - {{ event.end_time|time:"g:i A" }}
+              {{ event.display_title }}{% if event.time_label %} · {{ event.time_label }}{% endif %}
             </option>
             {% endfor %}
           </select>
@@ -66,7 +73,7 @@
     <textarea id="whatsapp-template" class="seva-input" rows="7">{{ whatsapp_template }}</textarea>
     {% if selected_event %}
     <div class="mini" style="margin-top:10px">
-      Selected seva: <strong>{{ selected_event.title }}</strong> · {{ selected_event.start_time|time:"g:i A" }} - {{ selected_event.end_time|time:"g:i A" }}
+      Selected seva: <strong>{{ selected_event.display_title }}</strong>{% if selected_event.time_label %} · {{ selected_event.time_label }}{% endif %}
     </div>
     {% else %}
     <div class="mini" style="margin-top:10px">Select a seva above if you want allocation buttons to appear in the list.</div>
@@ -78,8 +85,8 @@
 <div class="card" style="margin-bottom:16px">
   <div class="split" style="margin-bottom:10px">
     <div>
-      <h2>{{ selected_event.title }}</h2>
-      <div class="mini">{{ selected_date|date:"d M Y" }} · {{ selected_event.start_time|time:"g:i A" }} - {{ selected_event.end_time|time:"g:i A" }} · {{ selected_event.get_seva_location_display }}{% if selected_event.venue %} · {{ selected_event.venue }}{% endif %}</div>
+      <h2>{{ selected_event.display_title }}</h2>
+      <div class="mini">{{ selected_date|date:"d M Y" }}{% if selected_event.time_label %} · {{ selected_event.time_label }}{% endif %}{% if selected_event.seva_location %} · {{ selected_event.get_seva_location_display }}{% endif %}{% if selected_event.venue %} · {{ selected_event.venue }}{% endif %}</div>
     </div>
     <span class="pill">{{ allocated_count }} allocated</span>
   </div>
@@ -110,8 +117,8 @@
            data-name="{{ devotee.name }}"
            data-wa="{{ devotee.wa_number }}"
            data-date="{{ selected_date|date:'d F Y' }}"
-           data-time="{% if selected_event %}{{ selected_event.start_time|time:'g:i A' }} - {{ selected_event.end_time|time:'g:i A' }}{% elif devotee.day_slots %}{{ devotee.day_slots.0.start_time|time:'g:i A' }} - {{ devotee.day_slots.0.end_time|time:'g:i A' }}{% endif %}"
-           data-seva-title="{% if selected_event %}{{ selected_event.title }}{% else %}General Seva{% endif %}"
+           data-time="{% if selected_event %}{{ selected_event.time_label }}{% elif devotee.day_slots %}{{ devotee.day_slots.0.start_time|time:'g:i A' }} - {{ devotee.day_slots.0.end_time|time:'g:i A' }}{% endif %}"
+           data-seva-title="{% if selected_event %}{{ selected_event.display_title }}{% else %}General Seva{% endif %}"
            data-location="{% if selected_event %}{{ selected_event.get_seva_location_display }}{% else %}{{ devotee.get_seva_location_display }}{% endif %}"
            data-venue="{% if selected_event %}{{ selected_event.venue }}{% endif %}">
           <i class="bi bi-whatsapp"></i> WhatsApp

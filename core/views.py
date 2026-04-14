@@ -13,6 +13,7 @@ from django.urls import reverse
 from .forms import (
     DevoteeRegistrationForm,
     LoginForm,
+    SpecialSevaDateForm,
     SevaEventForm,
     UserCreateForm,
     availability_day_fields,
@@ -20,8 +21,16 @@ from .forms import (
     public_form_choice_sets,
     validate_availability_post,
 )
-from .models import AvailabilitySlot, DevoteeRegistration, SevaAllocation, SevaEvent, User
-from .utils import DEFAULT_WHATSAPP_TEMPLATE, PUBLIC_I18N, day_name_from_date, format_event_time, today_local
+from .models import (
+    AvailabilitySlot,
+    DevoteeRegistration,
+    SevaAllocation,
+    SevaEvent,
+    SpecialSevaDate,
+    SpecialSevaSignup,
+    User,
+)
+from .utils import DEFAULT_WHATSAPP_TEMPLATE, PUBLIC_I18N, day_name_from_date, today_local
 
 
 LOGO_URL = 'https://hkmraipur.org/wp-content/uploads/2025/04/HKM-Raipur-Web-Logo-1536-x-921-1.jpg.webp'
@@ -61,6 +70,7 @@ def _devotees_queryset():
     return DevoteeRegistration.objects.prefetch_related(
         Prefetch('availabilities', queryset=AvailabilitySlot.objects.order_by('day_of_week', 'start_time')),
         Prefetch('seva_allocations', queryset=SevaAllocation.objects.select_related('event').order_by('-allocated_at')),
+        Prefetch('special_seva_signups', queryset=SpecialSevaSignup.objects.select_related('special_date').order_by('special_date__date')),
     )
 
 
@@ -74,6 +84,10 @@ def _selected_event(request, selected_date):
         except ValueError:
             selected_event = None
     return events, selected_event
+
+
+def _upcoming_special_dates():
+    return SpecialSevaDate.objects.filter(date__gte=today_local()).order_by('date', 'title')
 
 
 def _build_devotee_cards(devotees, day_index, selected_event):
@@ -131,6 +145,7 @@ def _dashboard_context(request):
         'whatsapp_template': DEFAULT_WHATSAPP_TEMPLATE,
         'devotees_count': _devotees_queryset().count(),
         'events_count': len(events),
+        'special_dates_count': _upcoming_special_dates().count(),
         'matching_count': matching_count,
         'allocated_count': allocated_count,
     }
@@ -138,11 +153,18 @@ def _dashboard_context(request):
 
 def public_registration(request):
     availability_fields = availability_day_fields()
+    upcoming_special_dates = list(_upcoming_special_dates())
+    valid_special_date_ids = {str(item.pk) for item in upcoming_special_dates}
+    selected_special_date_ids = []
     existing = None
     if request.method == 'POST':
         normalized_phone = normalize_phone_number(request.POST.get('phone_number', ''))
         if normalized_phone:
             existing = DevoteeRegistration.objects.filter(phone_number=normalized_phone).first()
+        selected_special_date_ids = list(dict.fromkeys([
+            value for value in request.POST.getlist('special_dates')
+            if value in valid_special_date_ids
+        ]))
     form = DevoteeRegistrationForm(request.POST or None, instance=existing)
 
     if request.method == 'POST':
@@ -165,8 +187,7 @@ def public_registration(request):
             devotee.preacher = form.cleaned_data['preacher']
             devotee.seva_location = form.cleaned_data['seva_location']
             devotee.japa_rounds = form.cleaned_data['japa_rounds']
-            devotee.connected_since_value = form.cleaned_data['connected_since_value']
-            devotee.connected_since_unit = form.cleaned_data['connected_since_unit']
+            devotee.connected_since = form.cleaned_data['connected_since']
             devotee.notes = form.cleaned_data['notes']
             devotee.save()
 
@@ -179,6 +200,12 @@ def public_registration(request):
                     end_time=slot['end_time'],
                 )
 
+            devotee.special_seva_signups.filter(special_date__date__gte=today_local()).delete()
+            SpecialSevaSignup.objects.bulk_create([
+                SpecialSevaSignup(devotee=devotee, special_date_id=int(special_date_id))
+                for special_date_id in selected_special_date_ids
+            ], ignore_conflicts=True)
+
             if existing:
                 messages.success(request, 'आपकी पुरानी जानकारी फोन नंबर से मिल गई। हमने उसे अपडेट कर दिया है।')
             else:
@@ -188,6 +215,8 @@ def public_registration(request):
     return render(request, 'core/public_registration.html', {
         'form': form,
         'availability_fields': availability_fields,
+        'upcoming_special_dates': upcoming_special_dates,
+        'selected_special_date_ids': selected_special_date_ids,
         'logo_url': LOGO_URL,
         'i18n': PUBLIC_I18N,
         **public_form_choice_sets(),
@@ -238,6 +267,8 @@ def devotee_detail(request, pk):
     current_allocation = None
     if selected_event:
         current_allocation = next((item for item in devotee.seva_allocations.all() if item.event_id == selected_event.pk), None)
+    upcoming_special_signups = [item for item in devotee.special_seva_signups.all() if item.special_date.date >= today_local()]
+    past_special_signups = [item for item in devotee.special_seva_signups.all() if item.special_date.date < today_local()]
 
     return render(request, 'core/devotee_detail.html', {
         'logo_url': LOGO_URL,
@@ -248,6 +279,8 @@ def devotee_detail(request, pk):
         'selected_event': selected_event,
         'matching_slots': matching_slots,
         'current_allocation': current_allocation,
+        'upcoming_special_signups': upcoming_special_signups,
+        'past_special_signups': past_special_signups,
         'whatsapp_template': DEFAULT_WHATSAPP_TEMPLATE,
     })
 
@@ -273,7 +306,7 @@ def allocate_seva(request):
         if not created:
             messages.success(request, 'यह सेवा पहले से ही इस भक्त को allocate की हुई है।')
         else:
-            messages.success(request, f'{devotee.name} को "{event.title}" सेवा allocate कर दी गई है।')
+            messages.success(request, f'{devotee.name} को "{event.display_title}" सेवा allocate कर दी गई है।')
 
     next_url = request.POST.get('next') or reverse('temple_dashboard')
     return redirect(next_url)
@@ -287,7 +320,7 @@ def unallocate_seva(request):
     devotee = get_object_or_404(_devotees_queryset(), pk=request.POST.get('devotee_id'))
     event = get_object_or_404(SevaEvent, pk=request.POST.get('event_id'))
     SevaAllocation.objects.filter(devotee=devotee, event=event).delete()
-    messages.success(request, f'{devotee.name} से "{event.title}" सेवा allocation हटा दिया गया है।')
+    messages.success(request, f'{devotee.name} से "{event.display_title}" सेवा allocation हटा दिया गया है।')
     next_url = request.POST.get('next') or reverse('temple_dashboard')
     return redirect(next_url)
 
@@ -305,6 +338,35 @@ def seva_event_new(request):
         'logo_url': LOGO_URL,
         'form': form,
         'today': today_local().isoformat(),
+    })
+
+
+@admin_required
+def special_seva_dates(request):
+    form = SpecialSevaDateForm(request.POST or None)
+    if request.method == 'POST' and form.is_valid():
+        special_date = form.save(commit=False)
+        special_date.created_by = request.user
+        special_date.save()
+        messages.success(request, 'Special seva date added successfully.')
+        return redirect('special_seva_dates')
+
+    special_dates = list(
+        SpecialSevaDate.objects.prefetch_related(
+            Prefetch('signups', queryset=SpecialSevaSignup.objects.select_related('devotee').order_by('devotee__name'))
+        ).order_by('date', 'title')
+    )
+    today = today_local()
+    upcoming_dates = [item for item in special_dates if item.date >= today]
+    past_dates = [item for item in special_dates if item.date < today]
+
+    return render(request, 'core/special_seva_dates.html', {
+        'logo_url': LOGO_URL,
+        'form': form,
+        'today': today.isoformat(),
+        'upcoming_dates': upcoming_dates,
+        'past_dates': past_dates,
+        'whatsapp_template': DEFAULT_WHATSAPP_TEMPLATE,
     })
 
 

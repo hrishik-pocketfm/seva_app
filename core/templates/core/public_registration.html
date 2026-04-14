@@ -79,7 +79,7 @@
           {% if form.phone_number.errors %}<div class="mini" style="color:#dc2626">{{ form.phone_number.errors.0 }}</div>{% endif %}
         </div>
         <div>
-          <label class="label">क्या आप दीक्षित हैं?</label>
+          <label class="label" data-i18n="initiated">क्या आप दीक्षित हैं?</label>
           <select name="initiated" class="seva-input" required>
             {% for value, label in initiated_choices %}
             <option value="{{ value }}"
@@ -154,26 +154,14 @@
             {% endfor %}
           </select>
         </div>
-        <div class="grid two" style="gap:12px">
-          <div>
-            <label class="label" data-i18n="connected_since">मंदिर से कब से जुड़े हैं?</label>
-            <input type="number" name="connected_since_value" class="seva-input"
-                   value="{{ form.connected_since_value.value|default:'1' }}"
-                   data-ph-hi="संख्या" data-ph-en="Number" placeholder="संख्या" min="1" max="100" required>
-          </div>
-          <div>
-            <label class="label" data-i18n="connected_since">&nbsp;</label>
-            <select name="connected_since_unit" class="seva-input" required>
-              {% for value, label in connected_since_unit_choices %}
-              <option value="{{ value }}"
-                      data-hi="{% if value == 'MONTHS' %}महीने{% else %}साल{% endif %}"
-                      data-en="{{ label }}"
-                      {% if form.connected_since_unit.value == value or not form.connected_since_unit.value and value == 'MONTHS' %}selected{% endif %}>
-                {% if value == 'MONTHS' %}महीने{% else %}साल{% endif %}
-              </option>
-              {% endfor %}
-            </select>
-          </div>
+        <div>
+          <label class="label" data-i18n="connected_since">मंदिर से कब से जुड़े हैं?</label>
+          <input type="text" name="connected_since" class="seva-input"
+                 value="{{ form.connected_since.value|default:'' }}"
+                 data-ph-hi="जैसे 6 महीने या 2 साल"
+                 data-ph-en="For example 6 months or 2 years"
+                 placeholder="जैसे 6 महीने या 2 साल" required>
+          {% if form.connected_since.errors %}<div class="mini" style="color:#dc2626">{{ form.connected_since.errors.0 }}</div>{% endif %}
         </div>
         <div>
           <label class="label" data-i18n="notes">कोई और जानकारी</label>
@@ -183,6 +171,37 @@
                     placeholder="अगर कुछ और बताना हो तो यहाँ लिखें">{{ form.notes.value|default:'' }}</textarea>
         </div>
       </div>
+
+      {% if upcoming_special_dates %}
+      <div style="margin:22px 0 14px">
+        <h2 style="margin-bottom:8px" data-i18n="special_dates_title">विशेष सेवा तिथियां</h2>
+        <p class="mini" data-i18n="special_dates_subtitle">अगर नीचे कोई विशेष सेवा तिथि दिखाई दे, तो जिन तिथियों पर आप उपलब्ध हों उन्हें चुनें।</p>
+      </div>
+
+      <div class="list-stack" style="margin-bottom:18px">
+        {% for special_date in upcoming_special_dates %}
+        <label class="card" style="padding:14px;background:#fffdf9;cursor:pointer">
+          <div class="split" style="align-items:center">
+            <div style="display:flex;align-items:flex-start;gap:12px">
+              <input type="checkbox"
+                     name="special_dates"
+                     value="{{ special_date.pk }}"
+                     {% if special_date.pk|stringformat:'s' in selected_special_date_ids %}checked{% endif %}
+                     style="width:18px;height:18px;margin-top:2px;accent-color:#e67e22">
+              <div>
+                <div style="font-weight:800;color:var(--text)">{{ special_date.display_title }}</div>
+                <div class="mini">{{ special_date.date|date:"l, d M Y" }}{% if special_date.venue %} · {{ special_date.venue }}{% endif %}</div>
+                {% if special_date.description %}
+                <div class="mini" style="margin-top:4px">{{ special_date.description }}</div>
+                {% endif %}
+              </div>
+            </div>
+            <span class="pill">Special</span>
+          </div>
+        </label>
+        {% endfor %}
+      </div>
+      {% endif %}
 
       <div style="margin:22px 0 14px">
         <h2 style="margin-bottom:8px" data-i18n="availability_title">सेवा के लिए उपलब्धता</h2>

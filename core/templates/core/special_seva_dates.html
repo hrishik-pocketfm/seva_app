@@ -1,0 +1,156 @@
+{% extends 'core/base.html' %}
+{% block title %}Special Seva Dates{% endblock %}
+{% block nav_special_dates %}active{% endblock %}
+
+{% block content %}
+<section class="hero">
+  <h1>Special Seva Dates</h1>
+  <p class="lead">Create selected seva dates here. Any upcoming special date will appear on the public form before the regular weekly schedule.</p>
+</section>
+
+<div class="grid two" style="margin-bottom:16px">
+  <div class="card">
+    <h2 style="margin-bottom:8px">Add Special Seva Date</h2>
+    <p class="mini" style="margin-bottom:14px">Only the date is compulsory. Title, venue, and details are optional.</p>
+    <form method="post" class="list-stack">
+      {% csrf_token %}
+      {% if form.non_field_errors %}
+      <div class="alert error">{{ form.non_field_errors.0 }}</div>
+      {% endif %}
+      <div>
+        <label class="label">Title</label>
+        {{ form.title }}
+        {% if form.title.errors %}<div class="mini" style="color:#dc2626">{{ form.title.errors.0 }}</div>{% endif %}
+      </div>
+      <div>
+        <label class="label">Date</label>
+        {{ form.date }}
+        {% if form.date.errors %}<div class="mini" style="color:#dc2626">{{ form.date.errors.0 }}</div>{% endif %}
+      </div>
+      <div>
+        <label class="label">Venue</label>
+        {{ form.venue }}
+        {% if form.venue.errors %}<div class="mini" style="color:#dc2626">{{ form.venue.errors.0 }}</div>{% endif %}
+      </div>
+      <div>
+        <label class="label">Description</label>
+        {{ form.description }}
+        {% if form.description.errors %}<div class="mini" style="color:#dc2626">{{ form.description.errors.0 }}</div>{% endif %}
+      </div>
+      <button type="submit" class="btn-primary"><i class="bi bi-plus-lg"></i> Save Special Date</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-bottom:8px">WhatsApp Message</h2>
+    <p class="mini" style="margin-bottom:10px">Customize once and send from each devotee row. Tokens: <code>{name}</code>, <code>{date}</code>, <code>{time}</code>, <code>{seva_title}</code>, <code>{location}</code>, <code>{venue}</code>.</p>
+    <textarea id="whatsapp-template" class="seva-input" rows="7">{{ whatsapp_template }}</textarea>
+    <div class="mini" style="margin-top:10px">Special dates use the same WhatsApp text customization as the devotee dashboard.</div>
+  </div>
+</div>
+
+<div class="list-stack">
+  {% for special_date in upcoming_dates %}
+  <div class="card">
+    <div class="split" style="margin-bottom:12px">
+      <div>
+        <h2>{{ special_date.display_title }}</h2>
+        <div class="mini">{{ special_date.date|date:"l, d M Y" }}{% if special_date.venue %} · {{ special_date.venue }}{% endif %}</div>
+        {% if special_date.description %}
+        <div class="mini" style="margin-top:6px">{{ special_date.description }}</div>
+        {% endif %}
+      </div>
+      <span class="pill">{{ special_date.signups.all|length }} devotee{{ special_date.signups.all|length|pluralize }}</span>
+    </div>
+
+    <div class="list-stack">
+      {% for signup in special_date.signups.all %}
+      <div style="padding:12px;border-radius:16px;background:#fff;border:1px solid var(--line)">
+        <div class="split">
+          <div>
+            <a href="{% url 'devotee_detail' signup.devotee.pk %}?date={{ special_date.date|date:'Y-m-d' }}"
+               style="font-size:1rem;font-weight:800;color:var(--text);text-decoration:none">
+              {{ signup.devotee.name }}
+            </a>
+            <div class="mini">{{ signup.devotee.phone_number }} · {{ signup.devotee.get_gender_display }} · {{ signup.devotee.age }} years</div>
+            <div class="mini">{{ signup.devotee.get_seva_location_display }} · Preacher: {{ signup.devotee.preacher_name }}</div>
+          </div>
+          <div class="actions">
+            <a href="tel:{{ signup.devotee.phone_number }}" class="action-link action-call"><i class="bi bi-telephone-fill"></i> Call</a>
+            <a href="https://wa.me/{{ signup.devotee.wa_number }}"
+               target="_blank"
+               class="action-link action-wa js-wa-link"
+               data-name="{{ signup.devotee.name }}"
+               data-wa="{{ signup.devotee.wa_number }}"
+               data-date="{{ special_date.date|date:'d F Y' }}"
+               data-time=""
+               data-seva-title="{{ special_date.display_title }}"
+               data-location="Special Seva"
+               data-venue="{{ special_date.venue }}">
+              <i class="bi bi-whatsapp"></i> WhatsApp
+            </a>
+          </div>
+        </div>
+      </div>
+      {% empty %}
+      <div class="mini">No devotee has selected this special seva date yet.</div>
+      {% endfor %}
+    </div>
+  </div>
+  {% empty %}
+  <div class="card">
+    <div class="mini">No upcoming special seva dates yet.</div>
+  </div>
+  {% endfor %}
+</div>
+
+{% if past_dates %}
+<div class="card" style="margin-top:16px">
+  <h2 style="margin-bottom:12px">Past Special Dates</h2>
+  <div class="list-stack">
+    {% for special_date in past_dates %}
+    <div style="padding:12px;border-radius:16px;background:#fff;border:1px solid var(--line)">
+      <div style="font-weight:800">{{ special_date.display_title }}</div>
+      <div class="mini">{{ special_date.date|date:"d M Y" }} · {{ special_date.signups.all|length }} devotee{{ special_date.signups.all|length|pluralize }}</div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{{ whatsapp_template|json_script:"default-whatsapp-template" }}
+<script>
+  const DEFAULT_TEMPLATE = JSON.parse(document.getElementById('default-whatsapp-template').textContent);
+  const STORAGE_KEY = 'seva.whatsappTemplate';
+  const textarea = document.getElementById('whatsapp-template');
+
+  if (textarea) {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) textarea.value = saved;
+    textarea.addEventListener('input', function() {
+      localStorage.setItem(STORAGE_KEY, textarea.value);
+    });
+  }
+
+  function buildMessage(link) {
+    const template = textarea ? textarea.value : DEFAULT_TEMPLATE;
+    return template
+      .replaceAll('{name}', link.dataset.name || '')
+      .replaceAll('{date}', link.dataset.date || '')
+      .replaceAll('{time}', link.dataset.time || '')
+      .replaceAll('{seva_title}', link.dataset.sevaTitle || '')
+      .replaceAll('{location}', link.dataset.location || '')
+      .replaceAll('{venue}', link.dataset.venue || '');
+  }
+
+  document.querySelectorAll('.js-wa-link').forEach(function(link) {
+    link.addEventListener('click', function(event) {
+      event.preventDefault();
+      const encoded = encodeURIComponent(buildMessage(link));
+      window.open(`https://wa.me/${link.dataset.wa}?text=${encoded}`, '_blank');
+    });
+  });
+</script>
+{% endblock %}
