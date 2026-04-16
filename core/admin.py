@@ -38,23 +38,23 @@ class UserAdmin(BaseUserAdmin):
 
 @admin.register(DevoteeRegistration)
 class DevoteeRegistrationAdmin(admin.ModelAdmin):
-    list_display = ('name', 'phone_number', 'seva_location', 'preacher', 'japa_rounds', 'created_at')
+    list_display = ('name', 'phone_number', 'seva_location_label', 'preacher', 'japa_rounds', 'created_at')
     search_fields = ('name', 'phone_number', 'preacher', 'connected_since')
-    list_filter = ('seva_location', 'gender', 'preacher', 'initiated')
+    list_filter = ('gender', 'preacher', 'initiated')
     inlines = [AvailabilityInline]
 
 
 @admin.register(SevaEvent)
 class SevaEventAdmin(admin.ModelAdmin):
-    list_display = ('title', 'date', 'seva_location', 'start_time', 'end_time')
-    list_filter = ('seva_location', 'date')
+    list_display = ('display_title', 'day_of_week', 'seva_location', 'start_time', 'end_time')
+    list_filter = ('seva_location', 'day_of_week')
     search_fields = ('title', 'venue', 'description')
 
 
 @admin.register(SevaAllocation)
 class SevaAllocationAdmin(admin.ModelAdmin):
     list_display = ('devotee', 'event', 'allocated_by', 'allocated_at')
-    list_filter = ('allocated_at', 'event__date')
+    list_filter = ('allocated_at', 'event__day_of_week')
     search_fields = ('devotee__name', 'event__title', 'allocated_by__name')
 
 

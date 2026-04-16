@@ -4,11 +4,12 @@
 
 {% block content %}
 <section class="hero">
-  <h1>Add Seva</h1>
-  <p class="lead">Only date is compulsory. You can keep title, location, venue, and time blank if you want to add them later.</p>
+  <h1>Add Regular Seva</h1>
+  <p class="lead">Regular seva is now weekly. Day is compulsory, and title, location, venue, and time can stay blank if you want to add them later.</p>
 </section>
 
-<div class="card" style="max-width:760px">
+<div class="grid two">
+<div class="card">
   <form method="post">
     {% csrf_token %}
     <div class="grid two">
@@ -23,8 +24,8 @@
         <div class="mini">Optional</div>
       </div>
       <div>
-        <label class="label">Date</label>
-        {{ form.date }}
+        <label class="label">Day</label>
+        {{ form.day_of_week }}
         <div class="mini">Required</div>
       </div>
       <div>
@@ -53,5 +54,32 @@
       <a href="{% url 'temple_dashboard' %}" class="btn-secondary">Back to Dashboard</a>
     </div>
   </form>
+</div>
+
+<div class="card">
+  <h2 style="margin-bottom:10px">Existing Regular Seva</h2>
+  <div class="list-stack">
+    {% for event in regular_sevas %}
+    <div style="padding:12px;border-radius:16px;background:#fff;border:1px solid var(--line)">
+      <div class="split" style="align-items:center">
+        <div>
+          <div style="font-weight:800">{{ event.display_title }}</div>
+          <div class="mini">Every {{ event.day_label }}{% if event.time_label %} · {{ event.time_label }}{% endif %}{% if event.seva_location %} · {{ event.get_seva_location_display }}{% endif %}{% if event.venue %} · {{ event.venue }}{% endif %}</div>
+        </div>
+        <form method="post" action="{% url 'delete_seva_event' event.pk %}" onsubmit="return confirm('Delete this regular seva?')">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{% url 'seva_event_new' %}">
+          <button type="submit" class="btn-danger"><i class="bi bi-trash3"></i> Delete</button>
+        </form>
+      </div>
+      {% if event.description %}
+      <div class="mini" style="margin-top:8px">{{ event.description }}</div>
+      {% endif %}
+    </div>
+    {% empty %}
+    <div class="mini">No regular seva added yet.</div>
+    {% endfor %}
+  </div>
+</div>
 </div>
 {% endblock %}

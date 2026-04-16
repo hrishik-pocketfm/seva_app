@@ -60,7 +60,14 @@
         <div class="mini" style="margin-top:6px">{{ special_date.description }}</div>
         {% endif %}
       </div>
-      <span class="pill">{{ special_date.signups.all|length }} devotee{{ special_date.signups.all|length|pluralize }}</span>
+      <div class="actions">
+        <span class="pill">{{ special_date.signups.all|length }} devotee{{ special_date.signups.all|length|pluralize }}</span>
+        <form method="post" action="{% url 'delete_special_seva_date' special_date.pk %}" onsubmit="return confirm('Delete this special seva date?')">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{% url 'special_seva_dates' %}">
+          <button type="submit" class="btn-danger"><i class="bi bi-trash3"></i> Delete</button>
+        </form>
+      </div>
     </div>
 
     <div class="list-stack">
@@ -73,7 +80,7 @@
               {{ signup.devotee.name }}
             </a>
             <div class="mini">{{ signup.devotee.phone_number }} · {{ signup.devotee.get_gender_display }} · {{ signup.devotee.age }} years</div>
-            <div class="mini">{{ signup.devotee.get_seva_location_display }} · Preacher: {{ signup.devotee.preacher_name }}</div>
+            <div class="mini">{{ signup.devotee.seva_location_label }} · Preacher: {{ signup.devotee.preacher_name }}</div>
           </div>
           <div class="actions">
             <a href="tel:{{ signup.devotee.phone_number }}" class="action-link action-call"><i class="bi bi-telephone-fill"></i> Call</a>
@@ -110,8 +117,17 @@
   <div class="list-stack">
     {% for special_date in past_dates %}
     <div style="padding:12px;border-radius:16px;background:#fff;border:1px solid var(--line)">
-      <div style="font-weight:800">{{ special_date.display_title }}</div>
-      <div class="mini">{{ special_date.date|date:"d M Y" }} · {{ special_date.signups.all|length }} devotee{{ special_date.signups.all|length|pluralize }}</div>
+      <div class="split" style="align-items:center">
+        <div>
+          <div style="font-weight:800">{{ special_date.display_title }}</div>
+          <div class="mini">{{ special_date.date|date:"d M Y" }} · {{ special_date.signups.all|length }} devotee{{ special_date.signups.all|length|pluralize }}</div>
+        </div>
+        <form method="post" action="{% url 'delete_special_seva_date' special_date.pk %}" onsubmit="return confirm('Delete this special seva date?')">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{% url 'special_seva_dates' %}">
+          <button type="submit" class="btn-danger"><i class="bi bi-trash3"></i> Delete</button>
+        </form>
+      </div>
     </div>
     {% endfor %}
   </div>

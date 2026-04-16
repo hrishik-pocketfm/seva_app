@@ -18,7 +18,7 @@
     <div class="stat">{{ matching_count }}</div>
   </div>
   <div class="card">
-    <span class="label">{% if selected_event %}Allocated for Selected Seva{% else %}Seva on Selected Date{% endif %}</span>
+    <span class="label">{% if selected_event %}Allocated for Selected Seva{% else %}Regular Seva on {{ selected_day_name }}{% endif %}</span>
     <div class="stat">{% if selected_event %}{{ allocated_count }}{% else %}{{ events_count }}{% endif %}</div>
   </div>
   <div class="card">
@@ -46,12 +46,12 @@
           <input type="date" name="date" value="{{ selected_date|date:'Y-m-d' }}" class="seva-input">
         </div>
         <div>
-          <label class="label">Seva on This Date</label>
+          <label class="label">Regular Seva for {{ selected_day_name }}</label>
           <select name="seva" class="seva-input">
             <option value="">All devotees for {{ selected_day_name }}</option>
             {% for event in events %}
             <option value="{{ event.pk }}" {% if selected_event and selected_event.pk == event.pk %}selected{% endif %}>
-              {{ event.display_title }}{% if event.time_label %} · {{ event.time_label }}{% endif %}
+              {{ event.display_title }} · Every {{ event.day_label }}{% if event.time_label %} · {{ event.time_label }}{% endif %}
             </option>
             {% endfor %}
           </select>
@@ -73,7 +73,7 @@
     <textarea id="whatsapp-template" class="seva-input" rows="7">{{ whatsapp_template }}</textarea>
     {% if selected_event %}
     <div class="mini" style="margin-top:10px">
-      Selected seva: <strong>{{ selected_event.display_title }}</strong>{% if selected_event.time_label %} · {{ selected_event.time_label }}{% endif %}
+      Selected seva: <strong>{{ selected_event.display_title }}</strong> · Every {{ selected_event.day_label }}{% if selected_event.time_label %} · {{ selected_event.time_label }}{% endif %}
     </div>
     {% else %}
     <div class="mini" style="margin-top:10px">Select a seva above if you want allocation buttons to appear in the list.</div>
@@ -86,9 +86,16 @@
   <div class="split" style="margin-bottom:10px">
     <div>
       <h2>{{ selected_event.display_title }}</h2>
-      <div class="mini">{{ selected_date|date:"d M Y" }}{% if selected_event.time_label %} · {{ selected_event.time_label }}{% endif %}{% if selected_event.seva_location %} · {{ selected_event.get_seva_location_display }}{% endif %}{% if selected_event.venue %} · {{ selected_event.venue }}{% endif %}</div>
+      <div class="mini">Every {{ selected_event.day_label }}{% if selected_event.time_label %} · {{ selected_event.time_label }}{% endif %}{% if selected_event.seva_location %} · {{ selected_event.get_seva_location_display }}{% endif %}{% if selected_event.venue %} · {{ selected_event.venue }}{% endif %}</div>
     </div>
-    <span class="pill">{{ allocated_count }} allocated</span>
+    <div class="actions">
+      <span class="pill">{{ allocated_count }} allocated</span>
+      <form method="post" action="{% url 'delete_seva_event' selected_event.pk %}" onsubmit="return confirm('Delete this regular seva?')">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <button type="submit" class="btn-danger"><i class="bi bi-trash3"></i> Delete Seva</button>
+      </form>
+    </div>
   </div>
   {% if selected_event.description %}
   <div class="mini">{{ selected_event.description }}</div>
@@ -106,7 +113,7 @@
           {{ devotee.name }}
         </a>
         <div class="mini">{{ devotee.phone_number }} · {{ devotee.get_gender_display }} · {{ devotee.age }} years</div>
-        <div class="mini">{{ devotee.get_seva_location_display }} · Japa: {{ devotee.japa_rounds }} rounds · Connected: {{ devotee.connected_since_label }}</div>
+        <div class="mini">{{ devotee.seva_location_label }} · Japa: {{ devotee.japa_rounds }} rounds · Connected: {{ devotee.connected_since_label }}</div>
         <div class="mini">Preacher: {{ devotee.preacher_name }} · Initiated: {% if devotee.initiated == 'YES' %}Yes{% else %}No{% endif %}</div>
       </div>
       <div class="actions">
@@ -119,10 +126,15 @@
            data-date="{{ selected_date|date:'d F Y' }}"
            data-time="{% if selected_event %}{{ selected_event.time_label }}{% elif devotee.day_slots %}{{ devotee.day_slots.0.start_time|time:'g:i A' }} - {{ devotee.day_slots.0.end_time|time:'g:i A' }}{% endif %}"
            data-seva-title="{% if selected_event %}{{ selected_event.display_title }}{% else %}General Seva{% endif %}"
-           data-location="{% if selected_event %}{{ selected_event.get_seva_location_display }}{% else %}{{ devotee.get_seva_location_display }}{% endif %}"
+           data-location="{% if selected_event %}{{ selected_event.get_seva_location_display }}{% else %}{{ devotee.seva_location_label }}{% endif %}"
            data-venue="{% if selected_event %}{{ selected_event.venue }}{% endif %}">
           <i class="bi bi-whatsapp"></i> WhatsApp
         </a>
+        <form method="post" action="{% url 'delete_devotee' devotee.pk %}" onsubmit="return confirm('Delete this devotee response?')">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{{ request.get_full_path }}">
+          <button type="submit" class="btn-danger"><i class="bi bi-trash3"></i> Delete Response</button>
+        </form>
       </div>
     </div>
 

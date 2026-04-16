@@ -43,11 +43,13 @@ PREACHER_CHOICES = [
     ('Gaura Gopala dasa', 'Gaura Gopala dasa'),
     ('Sumadhura Krishna dasa', 'Sumadhura Krishna dasa'),
     ('Bharata Shreshtha dasa', 'Bharata Shreshtha dasa'),
+    ('Taruna Krishna dasa', 'Taruna Krishna dasa'),
     ('Gaura Shyama dasa', 'Gaura Shyama dasa'),
     ('Abhaya Prahlada dasa', 'Abhaya Prahlada dasa'),
     ('Nimai Priya dasa', 'Nimai Priya dasa'),
     ('Lokanath Govinda dasa', 'Lokanath Govinda dasa'),
     ('Mayapur Shashi dasa', 'Mayapur Shashi dasa'),
+    ('Rajendra Vigraha dasa', 'Rajendra Vigraha dasa'),
     ('Sakaleshwar Rama dasa', 'Sakaleshwar Rama dasa'),
     ('Parmananda Chaitanya dasa', 'Parmananda Chaitanya dasa'),
 ]
@@ -93,7 +95,7 @@ class DevoteeRegistration(models.Model):
     gender = models.CharField(max_length=1, choices=GENDER_CHOICES)
     address = models.TextField()
     preacher = models.CharField(max_length=150, choices=PREACHER_CHOICES, blank=True, default='')
-    seva_location = models.CharField(max_length=10, choices=SEVA_LOCATION_CHOICES)
+    seva_location = models.JSONField(default=list, blank=True)
     japa_rounds = models.PositiveSmallIntegerField(choices=JAPA_ROUND_CHOICES, default=0)
     connected_since = models.CharField(max_length=80)
     notes = models.TextField(blank=True)
@@ -113,6 +115,22 @@ class DevoteeRegistration(models.Model):
     @property
     def connected_since_label(self):
         return self.connected_since
+
+    @property
+    def selected_seva_locations(self):
+        value = self.seva_location or []
+        if isinstance(value, str):
+            return [value] if value else []
+        return list(value)
+
+    @property
+    def seva_location_labels(self):
+        choice_map = dict(SEVA_LOCATION_CHOICES)
+        return [choice_map.get(item, item) for item in self.selected_seva_locations]
+
+    @property
+    def seva_location_label(self):
+        return ', '.join(self.seva_location_labels)
 
     @property
     def wa_number(self):
@@ -149,7 +167,8 @@ class SevaEvent(models.Model):
     description = models.TextField(blank=True)
     seva_location = models.CharField(max_length=10, choices=SEVA_LOCATION_CHOICES, blank=True, default='')
     venue = models.CharField(max_length=200, blank=True)
-    date = models.DateField()
+    day_of_week = models.IntegerField(choices=DAY_OF_WEEK_CHOICES)
+    date = models.DateField(null=True, blank=True)
     start_time = models.TimeField(null=True, blank=True)
     end_time = models.TimeField(null=True, blank=True)
     created_by = models.ForeignKey(
@@ -161,14 +180,18 @@ class SevaEvent(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ['date', 'start_time', 'title']
+        ordering = ['day_of_week', 'start_time', 'title']
 
     def __str__(self):
-        return f'{self.display_title} - {self.date}'
+        return f'{self.display_title} - {self.day_label}'
 
     @property
     def display_title(self):
         return self.title or 'Seva'
+
+    @property
+    def day_label(self):
+        return self.get_day_of_week_display()
 
     @property
     def time_label(self):

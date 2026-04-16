@@ -27,7 +27,7 @@
       <div>
         <div style="font-size:1.05rem;font-weight:800">{{ devotee.name }}</div>
         <div class="mini">{{ devotee.phone_number }} · {{ devotee.get_gender_display }} · {{ devotee.age }} years</div>
-        <div class="mini">{{ devotee.get_seva_location_display }} · Preacher: {{ devotee.preacher_name }}</div>
+        <div class="mini">{{ devotee.seva_location_label }} · Preacher: {{ devotee.preacher_name }}</div>
       </div>
       <div class="actions">
         <a href="tel:{{ devotee.phone_number }}" class="action-link action-call"><i class="bi bi-telephone-fill"></i> Call</a>
@@ -52,4 +52,3 @@
   {% endfor %}
 </div>
 {% endblock %}
-

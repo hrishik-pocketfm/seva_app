@@ -30,6 +30,10 @@ class DevoteeRegistrationForm(forms.ModelForm):
         choices=PREACHER_CHOICES,
         widget=forms.Select(attrs={'class': 'seva-input'})
     )
+    seva_location = forms.MultipleChoiceField(
+        choices=SEVA_LOCATION_CHOICES,
+        widget=forms.CheckboxSelectMultiple,
+    )
 
     class Meta:
         model = DevoteeRegistration
@@ -45,7 +49,6 @@ class DevoteeRegistrationForm(forms.ModelForm):
             'age': forms.NumberInput(attrs={'class': 'seva-input', 'placeholder': 'Age', 'min': '1', 'max': '120'}),
             'gender': forms.Select(attrs={'class': 'seva-input'}),
             'address': forms.Textarea(attrs={'class': 'seva-input', 'rows': 3, 'placeholder': 'Full address'}),
-            'seva_location': forms.Select(attrs={'class': 'seva-input'}),
             'japa_rounds': forms.Select(attrs={'class': 'seva-input'}),
             'connected_since': forms.TextInput(attrs={'class': 'seva-input', 'placeholder': '6 months / 2 years'}),
             'notes': forms.Textarea(attrs={'class': 'seva-input', 'rows': 2, 'placeholder': 'Any additional notes'}),
@@ -66,13 +69,13 @@ class SevaEventForm(forms.ModelForm):
 
     class Meta:
         model = SevaEvent
-        fields = ['title', 'description', 'seva_location', 'venue', 'date', 'start_time', 'end_time']
+        fields = ['title', 'description', 'day_of_week', 'seva_location', 'venue', 'start_time', 'end_time']
         widgets = {
             'title': forms.TextInput(attrs={'class': 'seva-input', 'placeholder': 'Seva title'}),
             'description': forms.Textarea(attrs={'class': 'seva-input', 'rows': 3, 'placeholder': 'Description'}),
+            'day_of_week': forms.Select(attrs={'class': 'seva-input'}),
             'seva_location': forms.Select(attrs={'class': 'seva-input'}),
             'venue': forms.TextInput(attrs={'class': 'seva-input', 'placeholder': 'Venue / area'}),
-            'date': forms.DateInput(attrs={'class': 'seva-input', 'type': 'date'}),
             'start_time': forms.TimeInput(attrs={'class': 'seva-input', 'type': 'time'}),
             'end_time': forms.TimeInput(attrs={'class': 'seva-input', 'type': 'time'}),
         }

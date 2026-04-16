@@ -34,6 +34,26 @@
     flex:1;
     min-width:min(100%,280px);
   }
+  .choice-grid {
+    display:grid;
+    gap:10px;
+  }
+  .choice-option {
+    display:flex;
+    align-items:flex-start;
+    gap:12px;
+    padding:12px 14px;
+    border:1px solid rgba(207, 132, 39, 0.22);
+    border-radius:16px;
+    background:rgba(255,255,255,0.92);
+    cursor:pointer;
+  }
+  .choice-option input {
+    width:18px;
+    height:18px;
+    margin-top:2px;
+    accent-color:#e67e22;
+  }
   @media (max-width:720px) {
     .lang-toggle {
       margin:0 0 18px;
@@ -132,17 +152,33 @@
         </div>
         <div>
           <label class="label" data-i18n="location">सेवा का स्थान</label>
-          <select name="seva_location" class="seva-input" required>
-            <option value="">---</option>
+          <div class="choice-grid">
             {% for value, label in seva_location_choices %}
-            <option value="{{ value }}"
-                    data-hi="{% if value == 'TEMPLE' %}मंदिर सेवा{% elif value == 'OUTSIDE' %}बाहर सेवा{% else %}घर सेवा{% endif %}"
-                    data-en="{{ label }}"
-                    {% if form.seva_location.value == value %}selected{% endif %}>
-              {% if value == 'TEMPLE' %}मंदिर सेवा{% elif value == 'OUTSIDE' %}बाहर सेवा{% else %}घर सेवा{% endif %}
-            </option>
+            <label class="choice-option">
+              <input type="checkbox"
+                     name="seva_location"
+                     value="{{ value }}"
+                     {% if value in selected_seva_locations %}checked{% endif %}>
+              <div>
+                <div style="font-weight:800;color:var(--text)"
+                     data-hi="{% if value == 'TEMPLE' %}मंदिर सेवा{% elif value == 'OUTSIDE' %}बाहर सेवा{% else %}घर सेवा{% endif %}"
+                     data-en="{{ label }}">
+                  {% if value == 'TEMPLE' %}मंदिर सेवा{% elif value == 'OUTSIDE' %}बाहर सेवा{% else %}घर सेवा{% endif %}
+                </div>
+                <div class="mini">
+                  {% if value == 'TEMPLE' %}
+                  <span data-i18n="location_temple">मंदिर सेवा: मंदिर परिसर के अंदर की सेवा।</span>
+                  {% elif value == 'OUTSIDE' %}
+                  <span data-i18n="location_outside">बाहर सेवा: प्रचार, स्टॉल, यात्रा या बाहर की सेवा।</span>
+                  {% else %}
+                  <span data-i18n="location_home">घर सेवा: घर से की जा सकने वाली सेवा।</span>
+                  {% endif %}
+                </div>
+              </div>
+            </label>
             {% endfor %}
-          </select>
+          </div>
+          {% if form.seva_location.errors %}<div class="mini" style="color:#dc2626;margin-top:6px">{{ form.seva_location.errors.0 }}</div>{% endif %}
         </div>
         <div>
           <label class="label" data-i18n="japa_rounds">रोज कितने राउंड जप करते हैं?</label>
@@ -284,6 +320,10 @@
     });
 
     document.querySelectorAll('option[data-hi]').forEach((node) => {
+      node.textContent = lang === 'hi' ? node.dataset.hi : node.dataset.en;
+    });
+
+    document.querySelectorAll('[data-hi][data-en]:not(option)').forEach((node) => {
       node.textContent = lang === 'hi' ? node.dataset.hi : node.dataset.en;
     });
 

@@ -25,7 +25,7 @@
       <div class="mini"><strong>Gender:</strong> {{ devotee.get_gender_display }}</div>
       <div class="mini"><strong>Address:</strong> {{ devotee.address }}</div>
       <div class="mini"><strong>Preacher:</strong> {{ devotee.preacher_name }}</div>
-      <div class="mini"><strong>Seva Location:</strong> {{ devotee.get_seva_location_display }}</div>
+      <div class="mini"><strong>Seva Location:</strong> {{ devotee.seva_location_label }}</div>
       <div class="mini"><strong>Japa Rounds:</strong> {{ devotee.japa_rounds }}</div>
       <div class="mini"><strong>Connected Since:</strong> {{ devotee.connected_since_label }}</div>
       {% if devotee.notes %}<div class="mini"><strong>Notes:</strong> {{ devotee.notes }}</div>{% endif %}
@@ -40,10 +40,15 @@
          data-date="{{ selected_date|date:'d F Y' }}"
          data-time="{% if selected_event %}{{ selected_event.time_label }}{% endif %}"
          data-seva-title="{% if selected_event %}{{ selected_event.display_title }}{% else %}General Seva{% endif %}"
-         data-location="{% if selected_event %}{{ selected_event.get_seva_location_display }}{% else %}{{ devotee.get_seva_location_display }}{% endif %}"
+         data-location="{% if selected_event %}{{ selected_event.get_seva_location_display }}{% else %}{{ devotee.seva_location_label }}{% endif %}"
          data-venue="{% if selected_event %}{{ selected_event.venue }}{% endif %}">
         <i class="bi bi-whatsapp"></i> WhatsApp
       </a>
+      <form method="post" action="{% url 'delete_devotee' devotee.pk %}" onsubmit="return confirm('Delete this devotee response?')">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{% url 'temple_dashboard' %}?date={{ selected_date|date:'Y-m-d' }}{% if selected_event %}&seva={{ selected_event.pk }}{% endif %}">
+        <button type="submit" class="btn-danger"><i class="bi bi-trash3"></i> Delete Response</button>
+      </form>
     </div>
   </div>
 
@@ -66,7 +71,7 @@
           <option value="">Choose seva</option>
           {% for event in events %}
           <option value="{{ event.pk }}" {% if selected_event and selected_event.pk == event.pk %}selected{% endif %}>
-            {{ event.display_title }}{% if event.time_label %} · {{ event.time_label }}{% endif %}
+            {{ event.display_title }} · Every {{ event.day_label }}{% if event.time_label %} · {{ event.time_label }}{% endif %}
           </option>
           {% endfor %}
         </select>
@@ -76,7 +81,7 @@
 
     {% if selected_event %}
       <div class="mini" style="margin-bottom:10px">
-        <strong>{{ selected_event.display_title }}</strong>{% if selected_event.time_label %} · {{ selected_event.time_label }}{% endif %}{% if selected_event.seva_location %} · {{ selected_event.get_seva_location_display }}{% endif %}
+        <strong>{{ selected_event.display_title }}</strong> · Every {{ selected_event.day_label }}{% if selected_event.time_label %} · {{ selected_event.time_label }}{% endif %}{% if selected_event.seva_location %} · {{ selected_event.get_seva_location_display }}{% endif %}
       </div>
       {% if matching_slots %}
         <div class="mini" style="margin-bottom:10px;color:#c55f07;font-weight:800">This devotee is available for the selected seva.</div>
@@ -130,7 +135,7 @@
     {% for allocation in devotee.seva_allocations.all %}
     <div style="padding:12px;border-radius:16px;background:#fff;border:1px solid var(--line)">
       <div style="font-weight:800">{{ allocation.event.display_title }}</div>
-      <div class="mini">{{ allocation.event.date|date:"d M Y" }}{% if allocation.event.time_label %} · {{ allocation.event.time_label }}{% endif %}</div>
+      <div class="mini">Every {{ allocation.event.day_label }}{% if allocation.event.time_label %} · {{ allocation.event.time_label }}{% endif %}</div>
     </div>
     {% empty %}
     <div class="mini">No seva allocated yet.</div>

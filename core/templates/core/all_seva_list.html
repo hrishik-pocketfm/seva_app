@@ -1,0 +1,111 @@
+{% extends 'core/base.html' %}
+{% block title %}All Seva{% endblock %}
+{% block nav_all_seva %}active{% endblock %}
+
+{% block content %}
+<section class="hero">
+  <h1>All Seva List</h1>
+  <p class="lead">Temple devotees can see every regular weekly seva and every special seva date here in one place.</p>
+</section>
+
+<div class="grid two" style="margin-bottom:16px">
+  <div class="card">
+    <span class="label">Regular Seva</span>
+    <div class="stat">{{ regular_sevas|length }}</div>
+    <div class="mini" style="margin-top:8px">Weekly sevas by day.</div>
+  </div>
+  <div class="card">
+    <span class="label">Special Seva Dates</span>
+    <div class="stat">{{ special_dates_count }}</div>
+    <div class="mini" style="margin-top:8px">Upcoming and past exact-date sevas.</div>
+  </div>
+</div>
+
+<div class="grid two">
+  <div class="card">
+    <div class="split" style="align-items:center;margin-bottom:12px">
+      <div>
+        <h2>Regular Weekly Seva</h2>
+        <div class="mini">These are the repeat seva slots used for devotee matching and allocation.</div>
+      </div>
+      <a href="{% url 'seva_event_new' %}" class="btn-primary"><i class="bi bi-plus-lg"></i> Add Regular Seva</a>
+    </div>
+    <div class="list-stack">
+      {% for event in regular_sevas %}
+      <div style="padding:12px;border-radius:16px;background:#fff;border:1px solid var(--line)">
+        <div class="split" style="align-items:center">
+          <div>
+            <div style="font-weight:800">{{ event.display_title }}</div>
+            <div class="mini">Every {{ event.day_label }}{% if event.time_label %} · {{ event.time_label }}{% endif %}{% if event.seva_location %} · {{ event.get_seva_location_display }}{% endif %}{% if event.venue %} · {{ event.venue }}{% endif %}</div>
+            {% if event.description %}
+            <div class="mini" style="margin-top:6px">{{ event.description }}</div>
+            {% endif %}
+          </div>
+          <form method="post" action="{% url 'delete_seva_event' event.pk %}" onsubmit="return confirm('Delete this regular seva?')">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{% url 'all_seva_list' %}">
+            <button type="submit" class="btn-danger"><i class="bi bi-trash3"></i> Delete</button>
+          </form>
+        </div>
+      </div>
+      {% empty %}
+      <div class="mini">No regular seva added yet.</div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="split" style="align-items:center;margin-bottom:12px">
+      <div>
+        <h2>Special Seva Dates</h2>
+        <div class="mini">These exact dates appear above the regular weekly schedule on the public form.</div>
+      </div>
+      <a href="{% url 'special_seva_dates' %}" class="btn-secondary"><i class="bi bi-stars"></i> Manage Special Dates</a>
+    </div>
+
+    <div class="list-stack" style="margin-bottom:14px">
+      {% for special_date in upcoming_special_dates %}
+      <div style="padding:12px;border-radius:16px;background:#fff;border:1px solid var(--line)">
+        <div class="split" style="align-items:center">
+          <div>
+            <div style="font-weight:800">{{ special_date.display_title }}</div>
+            <div class="mini">{{ special_date.date|date:"l, d M Y" }}{% if special_date.venue %} · {{ special_date.venue }}{% endif %} · {{ special_date.signups.all|length }} devotee{{ special_date.signups.all|length|pluralize }}</div>
+            {% if special_date.description %}
+            <div class="mini" style="margin-top:6px">{{ special_date.description }}</div>
+            {% endif %}
+          </div>
+          <form method="post" action="{% url 'delete_special_seva_date' special_date.pk %}" onsubmit="return confirm('Delete this special seva date?')">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{% url 'all_seva_list' %}">
+            <button type="submit" class="btn-danger"><i class="bi bi-trash3"></i> Delete</button>
+          </form>
+        </div>
+      </div>
+      {% empty %}
+      <div class="mini">No upcoming special seva dates yet.</div>
+      {% endfor %}
+    </div>
+
+    {% if past_special_dates %}
+    <h2 style="margin-bottom:10px">Past Special Dates</h2>
+    <div class="list-stack">
+      {% for special_date in past_special_dates %}
+      <div style="padding:12px;border-radius:16px;background:#fff;border:1px solid var(--line)">
+        <div class="split" style="align-items:center">
+          <div>
+            <div style="font-weight:800">{{ special_date.display_title }}</div>
+            <div class="mini">{{ special_date.date|date:"d M Y" }} · {{ special_date.signups.all|length }} devotee{{ special_date.signups.all|length|pluralize }}</div>
+          </div>
+          <form method="post" action="{% url 'delete_special_seva_date' special_date.pk %}" onsubmit="return confirm('Delete this special seva date?')">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{% url 'all_seva_list' %}">
+            <button type="submit" class="btn-danger"><i class="bi bi-trash3"></i> Delete</button>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

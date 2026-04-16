@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import wraps
 
 from django.contrib import messages
@@ -56,8 +56,14 @@ def _selected_date(request):
     return today_local()
 
 
+def _next_date_for_day(day_index, reference_date=None):
+    current = reference_date or today_local()
+    days_ahead = (day_index - current.weekday()) % 7
+    return current + timedelta(days=days_ahead)
+
+
 def _slot_matches_event(slot, event):
-    if event.seva_location and slot.devotee.seva_location != event.seva_location:
+    if event.seva_location and event.seva_location not in slot.devotee.selected_seva_locations:
         return False
     if event.start_time and slot.start_time > event.start_time:
         return False
@@ -75,7 +81,7 @@ def _devotees_queryset():
 
 
 def _selected_event(request, selected_date):
-    events = list(SevaEvent.objects.filter(date=selected_date).order_by('start_time', 'title'))
+    events = list(SevaEvent.objects.filter(day_of_week=selected_date.weekday()).order_by('start_time', 'title'))
     selected_event = None
     raw_id = (request.GET.get('seva') or '').strip()
     if raw_id:
@@ -156,6 +162,7 @@ def public_registration(request):
     upcoming_special_dates = list(_upcoming_special_dates())
     valid_special_date_ids = {str(item.pk) for item in upcoming_special_dates}
     selected_special_date_ids = []
+    selected_seva_locations = []
     existing = None
     if request.method == 'POST':
         normalized_phone = normalize_phone_number(request.POST.get('phone_number', ''))
@@ -165,6 +172,9 @@ def public_registration(request):
             value for value in request.POST.getlist('special_dates')
             if value in valid_special_date_ids
         ]))
+        selected_seva_locations = request.POST.getlist('seva_location')
+    elif existing:
+        selected_seva_locations = existing.selected_seva_locations
     form = DevoteeRegistrationForm(request.POST or None, instance=existing)
 
     if request.method == 'POST':
@@ -217,6 +227,7 @@ def public_registration(request):
         'availability_fields': availability_fields,
         'upcoming_special_dates': upcoming_special_dates,
         'selected_special_date_ids': selected_special_date_ids,
+        'selected_seva_locations': selected_seva_locations,
         'logo_url': LOGO_URL,
         'i18n': PUBLIC_I18N,
         **public_form_choice_sets(),
@@ -249,6 +260,24 @@ def logout_view(request):
 @admin_required
 def temple_dashboard(request):
     return render(request, 'core/temple_dashboard.html', _dashboard_context(request))
+
+
+@admin_required
+def all_seva_list(request):
+    regular_sevas = SevaEvent.objects.order_by('day_of_week', 'start_time', 'title')
+    special_dates = list(SpecialSevaDate.objects.prefetch_related(
+        Prefetch('signups', queryset=SpecialSevaSignup.objects.select_related('devotee').order_by('devotee__name'))
+    ).order_by('date', 'title'))
+    today = today_local()
+    upcoming_special_dates = [item for item in special_dates if item.date >= today]
+    past_special_dates = [item for item in special_dates if item.date < today]
+    return render(request, 'core/all_seva_list.html', {
+        'logo_url': LOGO_URL,
+        'regular_sevas': regular_sevas,
+        'upcoming_special_dates': upcoming_special_dates,
+        'past_special_dates': past_special_dates,
+        'special_dates_count': len(special_dates),
+    })
 
 
 @admin_required
@@ -286,14 +315,26 @@ def devotee_detail(request, pk):
 
 
 @admin_required
+def delete_devotee(request, pk):
+    if request.method != 'POST':
+        raise Http404
+    devotee = get_object_or_404(DevoteeRegistration, pk=pk)
+    devotee_name = devotee.name
+    devotee.delete()
+    messages.success(request, f'{devotee_name} की response delete कर दी गई है।')
+    next_url = request.POST.get('next') or reverse('temple_dashboard')
+    return redirect(next_url)
+
+
+@admin_required
 def allocate_seva(request):
     if request.method != 'POST':
         raise Http404
 
     devotee = get_object_or_404(_devotees_queryset(), pk=request.POST.get('devotee_id'))
     event = get_object_or_404(SevaEvent, pk=request.POST.get('event_id'))
-    has_matching_slot = AvailabilitySlot.objects.filter(devotee=devotee, day_of_week=event.date.weekday()).exists()
-    matching_slot = any(_slot_matches_event(slot, event) for slot in devotee.availabilities.filter(day_of_week=event.date.weekday()))
+    has_matching_slot = AvailabilitySlot.objects.filter(devotee=devotee, day_of_week=event.day_of_week).exists()
+    matching_slot = any(_slot_matches_event(slot, event) for slot in devotee.availabilities.filter(day_of_week=event.day_of_week))
 
     if not has_matching_slot or not matching_slot:
         messages.error(request, 'यह भक्त चुनी हुई सेवा के समय उपलब्ध नहीं है, इसलिए अभी allocate नहीं किया गया।')
@@ -328,17 +369,32 @@ def unallocate_seva(request):
 @admin_required
 def seva_event_new(request):
     form = SevaEventForm(request.POST or None)
+    regular_sevas = SevaEvent.objects.order_by('day_of_week', 'start_time', 'title')
     if request.method == 'POST' and form.is_valid():
         event = form.save(commit=False)
         event.created_by = request.user
+        event.date = None
         event.save()
         messages.success(request, 'Seva added successfully.')
-        return redirect(f"{reverse('temple_dashboard')}?date={event.date.isoformat()}&seva={event.pk}")
+        selected_date = _next_date_for_day(event.day_of_week)
+        return redirect(f"{reverse('temple_dashboard')}?date={selected_date.isoformat()}&seva={event.pk}")
     return render(request, 'core/seva_event_form.html', {
         'logo_url': LOGO_URL,
         'form': form,
-        'today': today_local().isoformat(),
+        'regular_sevas': regular_sevas,
     })
+
+
+@admin_required
+def delete_seva_event(request, pk):
+    if request.method != 'POST':
+        raise Http404
+    event = get_object_or_404(SevaEvent, pk=pk)
+    event_name = event.display_title
+    event.delete()
+    messages.success(request, f'"{event_name}" regular seva delete कर दी गई है।')
+    next_url = request.POST.get('next') or reverse('seva_event_new')
+    return redirect(next_url)
 
 
 @admin_required
@@ -368,6 +424,18 @@ def special_seva_dates(request):
         'past_dates': past_dates,
         'whatsapp_template': DEFAULT_WHATSAPP_TEMPLATE,
     })
+
+
+@admin_required
+def delete_special_seva_date(request, pk):
+    if request.method != 'POST':
+        raise Http404
+    special_date = get_object_or_404(SpecialSevaDate, pk=pk)
+    title = special_date.display_title
+    special_date.delete()
+    messages.success(request, f'"{title}" special seva date delete कर दी गई है।')
+    next_url = request.POST.get('next') or reverse('special_seva_dates')
+    return redirect(next_url)
 
 
 @admin_required
